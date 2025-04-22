@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{- .Release.Name  }}-service"
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    {{ include "statuslistservice.selectorLabels" . }}
+  ports:
+    - port: 8080
+      protocol: TCP

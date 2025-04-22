@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{- .Release.Name  }}-deployment"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{ include "statuslistservice.selectorLabels" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{ include "statuslistservice.selectorLabels" . }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      annotations:
+      {{- if .Values.podAnnotations }}
+      {{ toYaml .Values.podAnnotations | indent 8 }}
+      {{- end }}
+      labels:
+        {{ include "statuslistservice.selectorLabels" . }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecrets }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+          ports:
+            - containerPort: {{ .Values.config.servingPort }}
+          volumeMounts:
+            - mountPath: /app
+              name: config-volume
+          env:
+            - name: STATUSLIST_SIGNER_URL
+              value: {{ .Values.config.signerUrl }}
+            - name: STATUSLIST_SIGNER_TOPIC
+              value: {{ .Values.config.signerTopic }}
+            - name: STATUSLIST_LISTSIZEINBYTES
+              value: {{ .Values.config.listSizeInBytes | quote }}
+            - name: STATUSLIST_NATS_URL
+              value: {{ .Values.config.messaging.nats.url }}
+            - name: STATUSLIST_NATS_QUEUE_GROUP
+              value: {{ .Values.config.messaging.nats.queueGroup }}
+            - name: STATUSLIST_NATS_REQUEST_TIMEOUT
+              value: {{ .Values.config.messaging.nats.timeoutInSec | quote  }}
+            - name: STATUSLIST_DATABASE_HOST
+              value: {{ .Values.config.database.host }}
+            - name: STATUSLIST_DATABASE_PORT
+              value: {{ .Values.config.database.port | quote  }}
+            - name: STATUSLIST_DATABASE_DATABASE
+              value: {{ .Values.config.database.db }}
+            - name: STATUSLIST_DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.database.secretName }}
+                  key: {{ .Values.config.database.usernameKey }}
+              {{- if .Values.config.database.params}}
+            - name: STATUSLIST_DATABASE_PARAMS
+              value: {{ .Values.config.database.params }}
+              {{- end}}
+            - name: STATUSLIST_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.database.secretName }}
+                  key: {{ .Values.config.database.passwordKey }}
+      {{- if .Values.resources }}
+          resources:
+{{ toYaml .Values.resources | indent 10 }}
+      {{- end }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: "{{ .Release.Name }}-configmap"

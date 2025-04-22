@@ -1,0 +1,7 @@
+.idea
+config.yaml
+*.exe
+status-list-service
+*.lock
+helm/charts
+*.tgz
