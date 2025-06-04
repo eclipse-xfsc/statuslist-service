@@ -13,5 +13,5 @@ permissions:
 
 jobs:
   call-remote-dash-workflow:
-    secret: inherit
+    secrets: inherit
     uses: eclipse-xfsc/dev-ops/.github/workflows/eclipse-dash-licence-go.yml@main
