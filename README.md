@@ -63,18 +63,18 @@ Environment Variables:
 
 |Variable|Purpose|Default|
 |--------|-------|-------|
-|STATUSLISTSERVICE_SIGNER_URL| Defines the signer url |signer|
-|STATUSLISTSERVICE_SIGNER_TOPIC| Defines the signer messaging topic|signer|
-|STATUSLISTSERVICE_LISTSIZEINBYTES| Defines the size of the list|1024|
-|STATUSLISTSERVICE_NATS_URL|Nats Host|nats://localhost:4222|
-|STATUSLISTSERVICE_NATS_QUEUE_GROUP|Nats Queue Group|-|
-|STATUSLISTSERVICE_NATS_REQUEST_TIMEOUT|Request Timeout|-|
-|STATUSLISTSERVICE_DATABASE_HOST|Postgres Host|localhost|
-|STATUSLISTSERVICE_DATABASE_PORT|Postgres Port|5432|
-|STATUSLISTSERVICE_DATABASE_DATABASE|Postgres DB|postgres|
-|STATUSLISTSERVICE_DATABASE_USER|Postgres User|postgres|
-|STATUSLISTSERVICE_DATABASE_PASSWORD|Postgres PW|postgres|
-|STATUSLISTSERVICE_DATABASE_PARAMS|Postgres Params|postgres|
+|STATUSLIST_SIGNER_URL| Defines the signer url |signer|
+|STATUSLIST_SIGNER_TOPIC| Defines the signer messaging topic|signer|
+|STATUSLIST_LISTSIZEINBYTES| Defines the size of the list|1024|
+|STATUSLIST_NATS_URL|Nats Host|nats://localhost:4222|
+|STATUSLIST_NATS_QUEUE_GROUP|Nats Queue Group|-|
+|STATUSLIST_NATS_REQUEST_TIMEOUT|Request Timeout|-|
+|STATUSLIST_DATABASE_HOST|Postgres Host|localhost|
+|STATUSLIST_DATABASE_PORT|Postgres Port|5432|
+|STATUSLIST_DATABASE_DATABASE|Postgres DB|postgres|
+|STATUSLIST_DATABASE_USER|Postgres User|postgres|
+|STATUSLIST_DATABASE_PASSWORD|Postgres PW|postgres|
+|STATUSLIST_DATABASE_PARAMS|Postgres Params|postgres|
 
 
 ## Usage
