@@ -137,7 +137,7 @@ func handleGetList(ctx *gin.Context) {
 	ctx.AbortWithStatus(http.StatusBadRequest)
 }
 
-func handleCredentialSigning2021(tenantId, statusList, key, namespace, group, did, host, listid string) (map[string]interface{}, error) {
+func handleCredentialSigning2021(tenantId, statusList, key, namespace, group, did, origin, listid string) (map[string]interface{}, error) {
 
 	payload := make(map[string]interface{})
 
@@ -148,11 +148,11 @@ func handleCredentialSigning2021(tenantId, statusList, key, namespace, group, di
 	credential := make(map[string]interface{})
 	credential["@context"] = []string{"https://www.w3.org/2018/credentials/v1", "https://w3id.org/vc/status-list/2021/v1", "https://w3id.org/security/suites/jws-2020/v1"}
 	credential["type"] = []string{"VerifiableCredential", "StatusList2021Credential"}
-	credential["id"] = host + "/" + listid
+	credential["id"] = origin + "/" + listid
 	credential["issuer"] = did
 	credential["issuanceDate"] = time.Now().UTC().Format(time.RFC3339)
 	subject := make(map[string]interface{})
-	subject["id"] = host + "/" + listid + "#list"
+	subject["id"] = origin + "/" + listid + "#list"
 	subject["type"] = "StatusList2021"
 	subject["statusPurpose"] = "revocation"
 	subject["encodedList"] = statusList

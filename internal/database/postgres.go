@@ -2,10 +2,10 @@ package database
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -17,15 +17,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TODO: queries as constants?
+//go:embed migrations
+
+var Migrations embed.FS
+
+const (
+	defaultStatusListType = "StatusList2021"
+	defaultPurpose        = "revocation"
+)
 
 type postgresConnection struct {
 	conn            *pgxpool.Pool
 	listSizeInBytes int
-}
-
-func (pc *postgresConnection) Ping() bool {
-	return pc.conn.Ping(context.Background()) == nil
 }
 
 func newPostgresConnection(database pgPkg.Config, ctx context.Context, listSizeInBytes int) (DbConnection, error) {
@@ -33,10 +36,16 @@ func newPostgresConnection(database pgPkg.Config, ctx context.Context, listSizeI
 
 	errChan := make(chan error)
 	go errPkg.LogChan(logger, errChan)
+
 	conn, err := pgPkg.ConnectRetry(ctx, database, time.Minute, errChan)
 	if err != nil {
 		logger.Error(err, "failed to connect to postgres")
 		os.Exit(1)
+	}
+
+	if err := pgPkg.MigrateUP(conn, Migrations, "migrations"); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("run postgres migrations: %w", err)
 	}
 
 	return &postgresConnection{
@@ -45,305 +54,329 @@ func newPostgresConnection(database pgPkg.Config, ctx context.Context, listSizeI
 	}, nil
 }
 
-func (pc *postgresConnection) GetStatusList(ctx context.Context, tenantId string, listId int) ([]byte, error) {
-	tx, err := pc.conn.BeginTx(ctx, pgx.TxOptions{
-		IsoLevel:       pgx.ReadCommitted,
-		AccessMode:     pgx.ReadWrite,
-		DeferrableMode: pgx.NotDeferrable,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("could not start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	if err != nil {
-		return nil, fmt.Errorf("error creating transaction: %w", err)
-	}
-
-	tableName, err := createTableName(tenantId)
-	if err != nil {
-		return nil, err
-	}
-
-	selectQuery := fmt.Sprintf("SELECT listID,list, free FROM %s WHERE listID=%s LIMIT 1", tableName, strconv.Itoa(listId))
-
-	rows, err := tx.Query(ctx, selectQuery)
-	if err != nil {
-		return nil, fmt.Errorf("error while select current list from the database: %w", err)
-	}
-
-	databaseRows, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.List])
-	if err != nil {
-		return nil, fmt.Errorf("error while collecting current list from rows: %w", err)
-	}
-
-	if len(databaseRows) == 0 {
-		return nil, errors.New("list not found")
-	}
-
-	currentList := databaseRows[0]
-
-	return currentList.List, nil
+func (pc *postgresConnection) Ping() bool {
+	return pc.conn.Ping(context.Background()) == nil
 }
 
-func (pc *postgresConnection) AllocateIndexInCurrentList(ctx context.Context, tenantId string) (*entity.StatusData, error) {
+func (pc *postgresConnection) AllocateIndexInCurrentList(ctx context.Context, req AllocateStatusListEntryRequest) (*entity.StatusData, error) {
 	tx, err := pc.conn.BeginTx(ctx, pgx.TxOptions{
-		IsoLevel:       pgx.ReadCommitted,
-		AccessMode:     pgx.ReadWrite,
-		DeferrableMode: pgx.NotDeferrable,
+		IsoLevel:   pgx.ReadCommitted,
+		AccessMode: pgx.ReadWrite,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not start transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	if err != nil {
-		return nil, fmt.Errorf("error creating transaction: %w", err)
+	statusType := req.Type
+	if statusType == "" {
+		statusType = defaultStatusListType
 	}
 
-	tableName, err := createTableName(tenantId)
-	if err != nil {
-		return nil, err
+	purpose := req.Purpose
+	if purpose == "" {
+		purpose = defaultPurpose
 	}
 
-	selectQuery := fmt.Sprintf("SELECT listID, list, free FROM %s WHERE free > 0 FOR UPDATE LIMIT 1", tableName)
-	rows, err := tx.Query(ctx, selectQuery)
-	if err != nil {
-		return nil, fmt.Errorf("error while select current list from the database: %w", err)
-	}
-	// not optimized for performance cause of reflection
-	databaseRows, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.List])
-	if err != nil {
-		return nil, fmt.Errorf("error while collecting current list from rows: %w", err)
+	row := tx.QueryRow(ctx, `
+		SELECT list_id, bitstring, capacity, next_index
+		FROM status_lists
+		WHERE tenant_id = $1
+		  AND origin = $2
+		  AND type = $3
+		  AND purpose = $4
+		  AND did = $5
+		  AND key_ref = $6
+		  AND namespace = $7
+		  AND COALESCE("group", '') = COALESCE($8, '')
+		  AND next_index < capacity
+		ORDER BY list_id ASC
+		FOR UPDATE
+		LIMIT 1
+	`,
+		req.TenantID,
+		req.Origin,
+		statusType,
+		purpose,
+		req.DID,
+		req.Key,
+		req.Namespace,
+		req.Group,
+	)
+
+	var (
+		listID    int
+		bitstring []byte
+		capacity  int
+		nextIndex int
+	)
+
+	err = row.Scan(&listID, &bitstring, &capacity, &nextIndex)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("select current status list: %w", err)
 	}
 
-	if len(databaseRows) == 0 {
-		// no current list -> create new one and allocate index
+	if errors.Is(err, pgx.ErrNoRows) {
 		newList := entity.NewList(pc.listSizeInBytes)
 
 		index, err := newList.AllocateNextFreeIndex()
 		if err != nil {
-			return nil, fmt.Errorf("error allocating next free index from new list: %w", err)
+			return nil, fmt.Errorf("allocate index in new list: %w", err)
 		}
 
-		insertQuery := fmt.Sprintf("INSERT INTO %s (list, free) VALUES ($1, $2) RETURNING listID", tableName)
-		var listId int
-		if err = tx.
-			QueryRow(ctx, insertQuery, newList.List, newList.Free).
-			Scan(&listId); err != nil {
-			return nil, fmt.Errorf("error inserting new list into the database: %w", err)
+		err = tx.QueryRow(ctx, `
+			INSERT INTO status_lists (
+				tenant_id,
+				type,
+				version,
+				capacity,
+				next_index,
+				bitstring,
+				did,
+				key_ref,
+				namespace,
+				"group",
+				origin,
+				purpose,
+				max_expiration_date
+			)
+			VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			RETURNING list_id
+		`,
+			req.TenantID,
+			statusType,
+			pc.listSizeInBytes*8,
+			index+1,
+			newList.List,
+			req.DID,
+			req.Key,
+			req.Namespace,
+			req.Group,
+			req.Origin,
+			purpose,
+			req.ExpirationDate,
+		).Scan(&listID)
+		if err != nil {
+			return nil, fmt.Errorf("insert new status list: %w", err)
+		}
+
+		statusURL := "/status/" + req.TenantID + "/" + strconv.Itoa(listID)
+
+		_, err = tx.Exec(ctx, `
+			UPDATE status_lists
+			SET status_url = $1,
+			    updated_at = now()
+			WHERE tenant_id = $2
+			  AND list_id = $3
+		`, statusURL, req.TenantID, listID)
+		if err != nil {
+			return nil, fmt.Errorf("update status url: %w", err)
 		}
 
 		if err := tx.Commit(ctx); err != nil {
-			return nil, fmt.Errorf("error commiting transaction: %w", err)
+			return nil, fmt.Errorf("commit transaction: %w", err)
 		}
 
-		return entity.NewStatusData(index, listId), nil
+		return entity.NewStatusData(index, listID), nil
 	}
 
-	// allocate index in current list
-	currentList := databaseRows[0]
+	currentList := entity.List{
+		ListId: listID,
+		List:   bitstring,
+		Free:   capacity - nextIndex,
+	}
 
 	index, err := currentList.AllocateNextFreeIndex()
 	if err != nil {
-		return nil, fmt.Errorf("error allocating next free index from current list: %w", err)
+		return nil, fmt.Errorf("allocate index in current list: %w", err)
 	}
 
-	updateQuery := fmt.Sprintf("UPDATE %s%s SET list = $1, free = $2 WHERE listID = $3", TablePrefix, tenantId)
-	if _, err := tx.Exec(ctx, updateQuery, currentList.List, currentList.Free, currentList.ListId); err != nil {
-		return nil, fmt.Errorf("error updating list in the database: %w", err)
+	_, err = tx.Exec(ctx, `
+		UPDATE status_lists
+		SET bitstring = $1,
+		    next_index = $2,
+		    max_expiration_date = CASE
+		        WHEN $3::timestamptz IS NULL THEN max_expiration_date
+		        WHEN max_expiration_date IS NULL THEN $3
+		        ELSE GREATEST(max_expiration_date, $3)
+		    END,
+		    updated_at = now()
+		WHERE tenant_id = $4
+		  AND list_id = $5
+	`,
+		currentList.List,
+		index+1,
+		req.ExpirationDate,
+		req.TenantID,
+		listID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update current status list: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("error commiting transaction: %w", err)
+		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
-	return entity.NewStatusData(index, currentList.ListId), nil
+	return entity.NewStatusData(index, listID), nil
+}
+
+func (pc *postgresConnection) GetStatusList(ctx context.Context, tenantId string, listId int) ([]byte, error) {
+	var bitstring []byte
+
+	err := pc.conn.QueryRow(ctx, `
+		SELECT bitstring
+		FROM status_lists
+		WHERE tenant_id = $1
+		  AND list_id = $2
+		LIMIT 1
+	`, tenantId, listId).Scan(&bitstring)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("list not found")
+		}
+		return nil, fmt.Errorf("get status list: %w", err)
+	}
+
+	return bitstring, nil
+}
+
+func (pc *postgresConnection) GetStatusListWithSigner(ctx context.Context, tenantId string, listId int) (*StatusListWithSigner, error) {
+	var out StatusListWithSigner
+
+	err := pc.conn.QueryRow(ctx, `
+		SELECT
+			tenant_id,
+			list_id,
+			type,
+			version,
+			bitstring,
+			did,
+			key_ref,
+			namespace,
+			COALESCE("group", ''),
+			origin,
+			COALESCE(purpose, ''),
+			COALESCE(status_url, ''),
+			max_expiration_date
+		FROM status_lists
+		WHERE tenant_id = $1
+		  AND list_id = $2
+		LIMIT 1
+	`, tenantId, listId).Scan(
+		&out.TenantID,
+		&out.ListID,
+		&out.Type,
+		&out.Version,
+		&out.Bitstring,
+		&out.DID,
+		&out.KeyRef,
+		&out.Namespace,
+		&out.Group,
+		&out.Origin,
+		&out.Purpose,
+		&out.StatusURL,
+		&out.MaxExpirationDate,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("list not found")
+		}
+		return nil, fmt.Errorf("get status list with signer: %w", err)
+	}
+
+	return &out, nil
 }
 
 func (pc *postgresConnection) RevokeCredentialInSpecifiedList(ctx context.Context, tenantId string, listId int, index int) error {
 	tx, err := pc.conn.BeginTx(ctx, pgx.TxOptions{
-		IsoLevel:       pgx.ReadCommitted,
-		AccessMode:     pgx.ReadWrite,
-		DeferrableMode: pgx.NotDeferrable,
+		IsoLevel:   pgx.ReadCommitted,
+		AccessMode: pgx.ReadWrite,
 	})
 	if err != nil {
 		return fmt.Errorf("could not start transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	tableName, err := createTableName(tenantId)
+	var bitstring []byte
+
+	err = tx.QueryRow(ctx, `
+		SELECT bitstring
+		FROM status_lists
+		WHERE tenant_id = $1
+		  AND list_id = $2
+		FOR UPDATE
+	`, tenantId, listId).Scan(&bitstring)
 	if err != nil {
-		return err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("status list %d not found", listId)
+		}
+		return fmt.Errorf("select status list for revoke: %w", err)
 	}
 
-	fmt.Println(tableName)
-	selectQuery := fmt.Sprintf("SELECT listID, list, free FROM %s WHERE listID = $1 FOR UPDATE LIMIT 1", tableName)
-	rows, err := tx.Query(ctx, selectQuery, listId)
-	if err != nil {
-		return fmt.Errorf("error while select specified list from the database: %w", err)
-	}
-	databaseRows, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.List])
-	if err != nil {
-		return fmt.Errorf("error while getting specified list from rows: %w", err)
+	list := entity.List{
+		ListId: listId,
+		List:   bitstring,
 	}
 
-	if len(databaseRows) == 0 {
-		return fmt.Errorf("listId %d does not exist in database", listId)
+	list.RevokeAtIndex(index)
+
+	_, err = tx.Exec(ctx, `
+		UPDATE status_lists
+		SET bitstring = $1,
+		    version = version + 1,
+		    updated_at = now()
+		WHERE tenant_id = $2
+		  AND list_id = $3
+	`, list.List, tenantId, listId)
+	if err != nil {
+		return fmt.Errorf("update revoked status list: %w", err)
 	}
 
-	specifiedList := databaseRows[0]
-
-	specifiedList.RevokeAtIndex(index)
-
-	updateQuery := fmt.Sprintf("UPDATE %s%s SET list = $1 WHERE listID = $2", TablePrefix, tenantId)
-	_, err = tx.Exec(ctx, updateQuery, specifiedList.List, specifiedList.ListId)
-	if err != nil {
-		return fmt.Errorf("error updating list in the database: %w", err)
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return fmt.Errorf("error commiting transaction: %w", err)
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
 	}
 
 	return nil
 }
 
 func (pc *postgresConnection) CacheList(ctx context.Context, cacheId string, list []byte) error {
-	tx, err := pc.conn.BeginTx(ctx, pgx.TxOptions{
-		IsoLevel:       pgx.ReadCommitted,
-		AccessMode:     pgx.ReadWrite,
-		DeferrableMode: pgx.NotDeferrable,
-	})
-
+	_, err := pc.conn.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS status_list_cache (
+			cache_id TEXT PRIMARY KEY,
+			list BYTEA NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		)
+	`)
 	if err != nil {
-		return fmt.Errorf("could not start transaction: %w", err)
+		return fmt.Errorf("create status list cache table: %w", err)
 	}
-	defer tx.Rollback(ctx)
 
-	var n int64
-	exists := true
-
-	_, err = tx.Exec(ctx, "LOCK TABLE information_schema.tables IN EXCLUSIVE MODE")
+	_, err = pc.conn.Exec(ctx, `
+		INSERT INTO status_list_cache (
+			cache_id,
+			list,
+			updated_at
+		)
+		VALUES ($1, $2, now())
+		ON CONFLICT (cache_id)
+		DO UPDATE SET
+			list = EXCLUDED.list,
+			updated_at = now()
+	`, cacheId, list)
 	if err != nil {
-		return fmt.Errorf("could not lock table: %w", err)
-	}
-
-	tableName, err := createTableName(cacheId)
-	if err != nil {
-		return err
-	}
-
-	const tableExistQuery = "SELECT 1 FROM information_schema.tables WHERE table_name = $1"
-	if err = tx.QueryRow(ctx, tableExistQuery, tableName).Scan(&n); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			exists = false
-		} else {
-			return fmt.Errorf("error query for table name: %w", err)
-		}
-	}
-
-	if !exists {
-		createTableQuery := fmt.Sprintf("CREATE TABLE %s (listID SERIAL PRIMARY KEY, list BYTEA, lastupdate timestamp)", tableName)
-		_, err = tx.Exec(ctx, createTableQuery)
-		if err != nil {
-			return fmt.Errorf("could not create new table for tenantID: %w", err)
-		}
-
-		insertQuery := fmt.Sprintf("INSERT INTO %s (list, lastupdate) VALUES ($1, $2)", tableName)
-		_, err = tx.Exec(ctx, insertQuery, list, time.Now())
-		if err != nil {
-			return fmt.Errorf("error inserting new list into the database: %w", err)
-		}
-	} else {
-		updateQuery := fmt.Sprintf("UPDATE %s SET list=$1, lastupdate=$2", tableName)
-		_, err = tx.Exec(ctx, updateQuery, list, time.Now())
-		if err != nil {
-			return fmt.Errorf("error inserting new list into the database: %w", err)
-		}
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return fmt.Errorf("error commiting transaction: %w", err)
+		return fmt.Errorf("cache status list: %w", err)
 	}
 
 	return nil
 }
 
 func (pc *postgresConnection) CreateTableForTenantIdIfNotExists(ctx context.Context, tenantId string) error {
-	tx, err := pc.conn.BeginTx(ctx, pgx.TxOptions{
-		IsoLevel:       pgx.ReadCommitted,
-		AccessMode:     pgx.ReadWrite,
-		DeferrableMode: pgx.NotDeferrable,
-	})
-	if err != nil {
-		return fmt.Errorf("could not start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	var n int64
-	exists := true
-
-	_, err = tx.Exec(ctx, "LOCK TABLE information_schema.tables IN EXCLUSIVE MODE")
-	if err != nil {
-		return fmt.Errorf("could not lock table: %w", err)
-	}
-
-	tableName, err := createTableName(tenantId)
-	if err != nil {
-		return err
-	}
-
-	const tableExistQuery = "SELECT 1 FROM information_schema.tables WHERE table_name = $1"
-	if err = tx.QueryRow(ctx, tableExistQuery, tableName).Scan(&n); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			exists = false
-		} else {
-			return fmt.Errorf("error query for table name: %w", err)
-		}
-	}
-
-	if !exists {
-		createTableQuery := fmt.Sprintf("CREATE TABLE %s (listID SERIAL PRIMARY KEY, list BYTEA, free INT)", tableName)
-		_, err = tx.Exec(ctx, createTableQuery)
-		if err != nil {
-			return fmt.Errorf("could not create new table for tenantID: %w", err)
-		}
-
-		newList := entity.NewList(pc.listSizeInBytes)
-
-		insertQuery := fmt.Sprintf("INSERT INTO %s (list, free) VALUES ($1, $2)", tableName)
-		_, err = tx.Exec(ctx, insertQuery, newList.List, newList.Free)
-		if err != nil {
-			return fmt.Errorf("error inserting new list into the database: %w", err)
-		}
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return fmt.Errorf("error commiting transaction: %w", err)
-	}
-
 	return nil
 }
 
 func (pc *postgresConnection) Close() {
 	pc.conn.Close()
-}
-
-func createTableName(tenantId string) (string, error) {
-	tableName := TablePrefix + tenantId
-	isValid, err := regexp.Match("^[a-zA-Z0-9_]+$", []byte(tableName))
-	if err != nil {
-		return "", fmt.Errorf("error while checking tableName: %w", err)
-	}
-
-	if !isValid {
-		return "", fmt.Errorf("tableName '%s' is not valid", tableName)
-	}
-
-	return tableName, nil
 }
