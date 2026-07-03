@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"sync"
 
 	"github.com/cloudevents/sdk-go/v2/event"
@@ -232,14 +231,8 @@ func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) 
 		return nil, err
 	}
 
-	parsedURL, err := url.Parse(eventData.StatusUrl)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
 	hasher := sha256.New()
-	hasher.Write([]byte(parsedURL.Host))
+	hasher.Write([]byte(eventData.StatusUrl))
 	cacheID := hex.EncodeToString(hasher.Sum(nil))
 
 	if err := db.CacheList(ctx, cacheID, bitstring); err != nil {
