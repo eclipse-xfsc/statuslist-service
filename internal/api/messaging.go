@@ -29,6 +29,7 @@ import (
 )
 
 var statusConf *config.StatusListConfiguration
+var db database.DbConnection
 
 type VerifyCredentialPayload struct {
 	Credential []byte `json:"credential"`
@@ -277,10 +278,11 @@ func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) 
 	return &answerEvent, nil
 }
 
-func startMessaging(conf *config.StatusListConfiguration, group *sync.WaitGroup) {
+func StartMessaging(conf *config.StatusListConfiguration, group *sync.WaitGroup, databaseConn *database.Database) {
 	defer group.Done()
 
 	statusConf = conf
+	db = databaseConn
 
 	client, err := cloudeventprovider.New(
 		cloudeventprovider.Config{
