@@ -17,7 +17,7 @@ type AllocateStatusListEntryRequest struct {
 	Group          string
 	Type           string
 	Purpose        string
-	ExpirationDate *time.Time
+	ExpirationDate time.Time
 }
 
 type StatusListWithSigner struct {
@@ -33,7 +33,7 @@ type StatusListWithSigner struct {
 	Origin            string
 	Purpose           string
 	StatusURL         string
-	MaxExpirationDate *time.Time
+	MaxExpirationDate time.Time
 }
 
 type DbConnection interface {

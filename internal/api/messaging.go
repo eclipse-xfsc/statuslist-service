@@ -47,6 +47,24 @@ func handle(ctx context.Context, event event.Event) (*event.Event, error) {
 
 }
 
+func createStatusEvent(rep messaging.CreateStatusListEntryReply) (*event.Event, error) {
+	answerData, err := json.Marshal(rep)
+	if err != nil {
+		return nil, err
+	}
+
+	answerEvent, err := cloudeventprovider.NewEvent(
+		"status-list-service",
+		messaging.EventTypeStatus,
+		answerData,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &answerEvent, nil
+}
+
 func handleCreate(ctx context.Context, event event.Event) (*event.Event, error) {
 	var eventData messaging.CreateStatusListEntryRequest
 	if err := json.Unmarshal(event.Data(), &eventData); err != nil {
@@ -65,39 +83,37 @@ func handleCreate(ctx context.Context, event event.Event) (*event.Event, error) 
 		Group:          eventData.Group,
 		Type:           eventData.Type,
 		Purpose:        eventData.Purpose,
-		ExpirationDate: &eventData.ExpirationDate,
+		ExpirationDate: eventData.ExpirationDate,
 	})
 
-	commonError := buildCommonError(err)
 	if err != nil {
 		log.Error(err)
+
+		rep := messaging.CreateStatusListEntryReply{
+			Reply: common.Reply{
+				TenantId:  eventData.TenantId,
+				RequestId: eventData.RequestId,
+				Error:     buildCommonError(err),
+			},
+		}
+
+		return createStatusEvent(rep)
 	}
 
 	rep := messaging.CreateStatusListEntryReply{
 		Reply: common.Reply{
 			TenantId:  eventData.TenantId,
 			RequestId: eventData.RequestId,
-			Error:     commonError,
+			Error:     nil,
 		},
+		ListId:    statusData.ListId,
 		Index:     statusData.Index,
 		StatusUrl: eventData.Origin + statusData.StatusUrl,
 		Purpose:   purposeOrDefault(eventData.Purpose),
 		Type:      typeOrDefault(eventData.Type),
 	}
 
-	answerData, err := json.Marshal(rep)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	answerEvent, err := cloudeventprovider.NewEvent("status-list-service", messaging.EventTypeStatus, answerData)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	return &answerEvent, nil
+	return createStatusEvent(rep)
 }
 
 func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) {
