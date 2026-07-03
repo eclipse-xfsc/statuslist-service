@@ -28,6 +28,13 @@ type StatusService struct {
 	db database.DbConnection
 }
 
+func ptrString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
 func NewStatusService(db database.DbConnection) *StatusService {
 	return &StatusService{db: db}
 }
@@ -62,7 +69,7 @@ func (s *StatusService) GetList(ctx context.Context, p *status.GetListPayload) (
 		return nil, err
 	}
 
-	contentType := preferredContentType(*p.ContentType, *p.Accept)
+	contentType := preferredContentType(ptrString(p.ContentType), ptrString(p.Accept))
 
 	switch contentType {
 	case "statuslist+jwt", "application/statuslist+jwt":

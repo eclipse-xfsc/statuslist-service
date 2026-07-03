@@ -12,9 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"sync"
-	"time"
 
 	"github.com/cloudevents/sdk-go/v2/event"
 	cloudeventprovider "github.com/eclipse-xfsc/cloud-event-provider"
@@ -214,7 +212,7 @@ func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) 
 		return nil, errors.New("encodedList not found")
 	}
 
-	compressedList, err := base64.RawStdEncoding.DecodeString(encodedList)
+	compressedList, err := base64.RawURLEncoding.DecodeString(encodedList)
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -300,82 +298,6 @@ func StartMessaging(conf *config.StatusListConfiguration, group *sync.WaitGroup,
 	if err := client.ReplyCtx(context.Background(), handle); err != nil {
 		panic(err)
 	}
-}
-
-func requestTokenSigning(tenantId, statusList, key, namespace, group, did, origin string, bits, listId int) ([]byte, error) {
-	client, err := cloudeventprovider.New(cloudeventprovider.Config{
-		Protocol: cloudeventprovider.ProtocolTypeNats,
-		Settings: cloudeventprovider.NatsConfig{
-			Url:          config.CurrentStatusListConfig.Nats.Url,
-			QueueGroup:   config.CurrentStatusListConfig.Nats.QueueGroup,
-			TimeoutInSec: config.CurrentStatusListConfig.Nats.TimeoutInSec,
-		},
-	}, cloudeventprovider.Req, config.CurrentStatusListConfig.SignerTopic)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
-	list := map[string]interface{}{
-		"bits": bits,
-		"lst":  statusList,
-	}
-
-	payloadMap := map[string]interface{}{
-		"status_list": list,
-		"iss":         origin,
-		"sub":         origin + "/statuslists/" + strconv.Itoa(listId),
-		"iat":         time.Now().Unix(),
-		"exp":         time.Now().AddDate(1, 0, 0).Unix(),
-	}
-
-	payloadBytes, err := json.Marshal(payloadMap)
-	if err != nil {
-		return nil, err
-	}
-
-	headerMap := map[string]interface{}{
-		"kid": did + "#" + key,
-	}
-
-	headerBytes, err := json.Marshal(headerMap)
-	if err != nil {
-		return nil, err
-	}
-
-	payload := messaging.CreateTokenRequest{
-		Request: common.Request{
-			TenantId:  tenantId,
-			RequestId: uuid.NewString(),
-		},
-		Namespace: namespace,
-		Group:     group,
-		Key:       key,
-		Payload:   payloadBytes,
-		Header:    headerBytes,
-	}
-
-	requestBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	signEvent, err := cloudeventprovider.NewEvent("statuslist-service", messaging.SignerServiceSignTokenType, requestBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	replyEvent, err := client.RequestCtx(context.Background(), signEvent)
-	if err != nil {
-		return nil, err
-	}
-
-	var tokenReply messaging.CreateTokenReply
-	if err := json.Unmarshal(replyEvent.Data(), &tokenReply); err != nil {
-		return nil, err
-	}
-
-	return tokenReply.Token, nil
 }
 
 func buildCommonError(err error) *common.Error {
