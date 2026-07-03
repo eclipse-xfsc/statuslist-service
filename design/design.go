@@ -5,15 +5,90 @@ import . "goa.design/goa/v3/dsl"
 var _ = API("statuslist", func() {
 	Title("XFSC Status List Service")
 	Description("Status list REST API")
+
+	Server("statuslist", func() {
+		Host("default", func() {
+			URI("http://localhost:8080")
+		})
+	})
+})
+
+var StatusListResult = ResultType("application/vnd.xfsc.status-list", func() {
+	TypeName("StatusListResult")
+
+	Attributes(func() {
+		Attribute("tenantId", String)
+		Attribute("listId", Int)
+		Attribute("list", String)
+		Required("tenantId", "listId", "list")
+	})
+
+	View("default", func() {
+		Attribute("tenantId")
+		Attribute("listId")
+		Attribute("list")
+	})
+})
+
+var RevokeResult = ResultType("application/vnd.xfsc.status-list-revoke", func() {
+	TypeName("RevokeResult")
+
+	Attributes(func() {
+		Attribute("tenantId", String)
+		Attribute("listId", Int)
+		Attribute("index", Int)
+		Attribute("status", String)
+		Required("tenantId", "listId", "index", "status")
+	})
+
+	View("default", func() {
+		Attribute("tenantId")
+		Attribute("listId")
+		Attribute("index")
+		Attribute("status")
+	})
+})
+
+var ServiceError = ResultType("application/vnd.xfsc.error", func() {
+	TypeName("ErrorResult")
+
+	Attributes(func() {
+		Attribute("message", String)
+		Attribute("status", Int)
+		Required("message", "status")
+	})
+
+	View("default", func() {
+		Attribute("message")
+		Attribute("status")
+	})
 })
 
 var _ = Service("status", func() {
 	Description("Status list endpoints")
 
+	Error("bad_request", ServiceError)
+	Error("internal_error", ServiceError)
+
+	Method("health", func() {
+		Result(String)
+
+		HTTP(func() {
+			GET("/health")
+
+			Response(StatusOK)
+		})
+	})
+
 	Method("getList", func() {
+		Description("Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.")
+
 		Payload(func() {
 			Attribute("tenantId", String)
 			Attribute("listId", Int)
+
+			Attribute("contentType", String)
+			Attribute("accept", String)
 
 			Required("tenantId", "listId")
 		})
@@ -22,13 +97,19 @@ var _ = Service("status", func() {
 
 		HTTP(func() {
 			GET("/status/{tenantId}/{listId}")
+
+			Header("contentType:Content-Type")
+			Header("accept:Accept")
+
 			Response(StatusOK)
-			Response(StatusBadRequest)
-			Response(StatusInternalServerError)
+			Response("bad_request", StatusBadRequest)
+			Response("internal_error", StatusInternalServerError)
 		})
 	})
 
 	Method("revoke", func() {
+		Description("Revokes a credential by setting the bit at the given index.")
+
 		Payload(func() {
 			Attribute("tenantId", String)
 			Attribute("listId", Int)
@@ -37,29 +118,14 @@ var _ = Service("status", func() {
 			Required("tenantId", "listId", "index")
 		})
 
-		Result(func() {
-			Attribute("tenantId", String)
-			Attribute("listId", Int)
-			Attribute("index", Int)
-			Attribute("status", String)
-
-			Required("tenantId", "listId", "index", "status")
-		})
+		Result(RevokeResult)
 
 		HTTP(func() {
 			POST("/status/{tenantId}/{listId}/revoke/{index}")
 
 			Response(StatusOK)
-			Response(StatusInternalServerError)
-		})
-	})
-
-	Method("health", func() {
-		Result(String)
-
-		HTTP(func() {
-			GET("/health")
-			Response(StatusOK)
+			Response("bad_request", StatusBadRequest)
+			Response("internal_error", StatusInternalServerError)
 		})
 	})
 })
