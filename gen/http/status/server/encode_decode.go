@@ -49,15 +49,13 @@ func DecodeGetListRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 	return func(r *http.Request) (*status.GetListPayload, error) {
 		var payload *status.GetListPayload
 		var (
-			tenantID    string
-			listID      int
-			contentType *string
-			accept      *string
-			err         error
+			listID   int
+			tenantID string
+			accept   *string
+			err      error
 
 			params = mux.Vars(r)
 		)
-		tenantID = params["tenantId"]
 		{
 			listIDRaw := params["listId"]
 			v, err2 := strconv.ParseInt(listIDRaw, 10, strconv.IntSize)
@@ -66,9 +64,9 @@ func DecodeGetListRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 			}
 			listID = int(v)
 		}
-		contentTypeRaw := r.Header.Get("Content-Type")
-		if contentTypeRaw != "" {
-			contentType = &contentTypeRaw
+		tenantID = r.Header.Get("X-Tenant-Id")
+		if tenantID == "" {
+			err = goa.MergeErrors(err, goa.MissingFieldError("tenantId", "header"))
 		}
 		acceptRaw := r.Header.Get("Accept")
 		if acceptRaw != "" {
@@ -77,53 +75,9 @@ func DecodeGetListRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetListPayload(tenantID, listID, contentType, accept)
+		payload = NewGetListPayload(listID, tenantID, accept)
 
 		return payload, nil
-	}
-}
-
-// EncodeGetListError returns an encoder for errors returned by the getList
-// status endpoint.
-func EncodeGetListError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "bad_request":
-			var res *status.ErrorResult
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/vnd.xfsc.error")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetListBadRequestResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusBadRequest)
-			return enc.Encode(body)
-		case "internal_error":
-			var res *status.ErrorResult
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/vnd.xfsc.error")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetListInternalErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
 	}
 }
 

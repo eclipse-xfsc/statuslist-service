@@ -52,7 +52,7 @@ func New(
 	return &Server{
 		Mounts: []*MountPoint{
 			{"Health", "GET", "/health"},
-			{"GetList", "GET", "/status/{tenantId}/{listId}"},
+			{"GetList", "GET", "/status/{listId}"},
 			{"Revoke", "POST", "/status/{tenantId}/{listId}/revoke/{index}"},
 		},
 		Health:  NewHealthHandler(e.Health, mux, decoder, encoder, errhandler, formatter),
@@ -141,7 +141,7 @@ func MountGetListHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/status/{tenantId}/{listId}", f)
+	mux.Handle("GET", "/status/{listId}", f)
 }
 
 // NewGetListHandler creates a HTTP handler which loads the HTTP request and
@@ -157,7 +157,7 @@ func NewGetListHandler(
 	var (
 		decodeRequest  = DecodeGetListRequest(mux, decoder)
 		encodeResponse = EncodeGetListResponse(encoder)
-		encodeError    = EncodeGetListError(encoder, formatter)
+		encodeError    = goahttp.ErrorEncoder(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))

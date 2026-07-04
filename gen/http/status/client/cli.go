@@ -16,12 +16,8 @@ import (
 
 // BuildGetListPayload builds the payload for the status getList endpoint from
 // CLI flags.
-func BuildGetListPayload(statusGetListTenantID string, statusGetListListID string, statusGetListContentType string, statusGetListAccept string) (*status.GetListPayload, error) {
+func BuildGetListPayload(statusGetListListID string, statusGetListTenantID string, statusGetListAccept string) (*status.GetListPayload, error) {
 	var err error
-	var tenantID string
-	{
-		tenantID = statusGetListTenantID
-	}
 	var listID int
 	{
 		var v int64
@@ -31,11 +27,9 @@ func BuildGetListPayload(statusGetListTenantID string, statusGetListListID strin
 			return nil, fmt.Errorf("invalid value for listID, must be INT")
 		}
 	}
-	var contentType *string
+	var tenantID string
 	{
-		if statusGetListContentType != "" {
-			contentType = &statusGetListContentType
-		}
+		tenantID = statusGetListTenantID
 	}
 	var accept *string
 	{
@@ -44,9 +38,8 @@ func BuildGetListPayload(statusGetListTenantID string, statusGetListListID strin
 		}
 	}
 	v := &status.GetListPayload{}
-	v.TenantID = tenantID
 	v.ListID = listID
-	v.ContentType = contentType
+	v.TenantID = tenantID
 	v.Accept = accept
 
 	return v, nil

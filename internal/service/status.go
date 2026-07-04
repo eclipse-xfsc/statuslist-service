@@ -42,6 +42,10 @@ func NewStatusService(db database.DbConnection) *StatusService {
 var _ status.Service = (*StatusService)(nil)
 
 func (s *StatusService) Health(ctx context.Context) (string, error) {
+	if !s.db.Ping() {
+		return "", fmt.Errorf("database ping failed")
+	}
+
 	return "ok", nil
 }
 
@@ -69,10 +73,10 @@ func (s *StatusService) GetList(ctx context.Context, p *status.GetListPayload) (
 		return nil, err
 	}
 
-	contentType := preferredContentType(ptrString(p.ContentType), ptrString(p.Accept))
+	content := ptrString(p.Accept)
 
-	switch contentType {
-	case "statuslist+jwt", "application/statuslist+jwt":
+	switch content {
+	case "application/statuslist+jwt":
 		token, err := signer.RequestTokenSigning(
 			p.TenantID,
 			encodedList,
@@ -178,24 +182,21 @@ func buildStatusList2021Credential(list *database.StatusListWithSigner, encodedL
 	}
 }
 
-func preferredContentType(contentType string, accept string) string {
-	value := strings.TrimSpace(contentType)
-	if value == "" {
-		value = strings.TrimSpace(accept)
-	}
+func preferredContentType(accept string) string {
+	value := strings.TrimSpace(accept)
 
 	value = strings.ToLower(value)
 
 	if strings.Contains(value, "application/vc+ld+json") {
-		return "application/vc+ld+json"
+		return "vc+ld+json"
 	}
 
-	if strings.Contains(value, "statuslist+jwt") {
+	if strings.Contains(value, "application/statuslist+jwt") {
 		return "statuslist+jwt"
 	}
 
 	if strings.Contains(value, "application/json") {
-		return "application/json"
+		return "json"
 	}
 
 	return value

@@ -26,7 +26,7 @@ paths:
                         type: string
             schemes:
                 - http
-    /status/{tenantId}/{listId}:
+    /status/{listId}:
         get:
             tags:
                 - status
@@ -34,18 +34,14 @@ paths:
             description: Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.
             operationId: status#getList
             parameters:
-                - name: tenantId
-                  in: path
-                  required: true
-                  type: string
                 - name: listId
                   in: path
                   required: true
                   type: integer
                   format: int64
-                - name: Content-Type
+                - name: X-Tenant-Id
                   in: header
-                  required: false
+                  required: true
                   type: string
                 - name: Accept
                   in: header
@@ -55,14 +51,6 @@ paths:
                 "200":
                     description: OK response.
                     schema: {}
-                "400":
-                    description: Bad Request response.
-                    schema:
-                        $ref: '#/definitions/XfscError'
-                "500":
-                    description: Internal Server Error response.
-                    schema:
-                        $ref: '#/definitions/XfscError'
             schemes:
                 - http
     /status/{tenantId}/{listId}/revoke/{index}:
@@ -109,15 +97,15 @@ definitions:
         properties:
             message:
                 type: string
-                example: Quibusdam dolor nemo.
+                example: Vero molestiae vitae tenetur quae culpa quis.
             status:
                 type: integer
-                example: 6106311971333610863
+                example: 7286920244806130487
                 format: int64
-        description: getList_bad_request_response_body result type (default view)
+        description: revoke_bad_request_response_body result type (default view)
         example:
-            message: Quo esse.
-            status: 472838809323895160
+            message: Aspernatur et qui pariatur est.
+            status: 222714087854666490
         required:
             - message
             - status
@@ -127,24 +115,24 @@ definitions:
         properties:
             index:
                 type: integer
-                example: 2832197977770443002
+                example: 8022470757059323209
                 format: int64
             listId:
                 type: integer
-                example: 2880598905487032620
+                example: 5448277403818738703
                 format: int64
             status:
                 type: string
-                example: Quis ut.
+                example: Dicta non voluptatem.
             tenantId:
                 type: string
-                example: Error vero molestiae vitae.
+                example: Minus quia perferendis iure qui.
         description: RevokeResponseBody result type (default view)
         example:
-            index: 5423827159614141320
-            listId: 222714087854666490
-            status: Quod velit placeat animi tempore natus harum.
-            tenantId: Aspernatur et qui pariatur est.
+            index: 1512202983677531911
+            listId: 1279122409532435157
+            status: Nemo voluptas nulla quo esse asperiores consectetur.
+            tenantId: Maiores sit.
         required:
             - tenantId
             - listId

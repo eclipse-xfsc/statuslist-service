@@ -86,24 +86,18 @@ var _ = Service("status", func() {
 		Payload(func() {
 			Attribute("tenantId", String)
 			Attribute("listId", Int)
-
-			Attribute("contentType", String)
 			Attribute("accept", String)
-
 			Required("tenantId", "listId")
 		})
 
 		Result(Any)
 
 		HTTP(func() {
-			GET("/status/{tenantId}/{listId}")
-
-			Header("contentType:Content-Type")
+			GET("/status/{listId}")
+			Header("tenantId:X-Tenant-Id")
 			Header("accept:Accept")
-
 			Response(StatusOK)
-			Response("bad_request", StatusBadRequest)
-			Response("internal_error", StatusInternalServerError)
+
 		})
 	})
 

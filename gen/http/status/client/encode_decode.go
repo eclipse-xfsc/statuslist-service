@@ -73,18 +73,16 @@ func DecodeHealthResponse(decoder func(*http.Response) goahttp.Decoder, restoreB
 // set to call the "status" service "getList" endpoint
 func (c *Client) BuildGetListRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		tenantID string
-		listID   int
+		listID int
 	)
 	{
 		p, ok := v.(*status.GetListPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("status", "getList", "*status.GetListPayload", v)
 		}
-		tenantID = p.TenantID
 		listID = p.ListID
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetListStatusPath(tenantID, listID)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetListStatusPath(listID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("status", "getList", u.String(), err)
@@ -104,9 +102,9 @@ func EncodeGetListRequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 		if !ok {
 			return goahttp.ErrInvalidType("status", "getList", "*status.GetListPayload", v)
 		}
-		if p.ContentType != nil {
-			head := *p.ContentType
-			req.Header.Set("Content-Type", head)
+		{
+			head := p.TenantID
+			req.Header.Set("X-Tenant-Id", head)
 		}
 		if p.Accept != nil {
 			head := *p.Accept
@@ -119,10 +117,6 @@ func EncodeGetListRequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 // DecodeGetListResponse returns a decoder for responses returned by the status
 // getList endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
-// DecodeGetListResponse may return the following errors:
-//   - "bad_request" (type *status.ErrorResult): http.StatusBadRequest
-//   - "internal_error" (type *status.ErrorResult): http.StatusInternalServerError
-//   - error: internal error
 func DecodeGetListResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
@@ -148,34 +142,6 @@ func DecodeGetListResponse(decoder func(*http.Response) goahttp.Decoder, restore
 				return nil, goahttp.ErrDecodingError("status", "getList", err)
 			}
 			return body, nil
-		case http.StatusBadRequest:
-			var (
-				body GetListBadRequestResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("status", "getList", err)
-			}
-			err = ValidateGetListBadRequestResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("status", "getList", err)
-			}
-			return nil, NewGetListBadRequest(&body)
-		case http.StatusInternalServerError:
-			var (
-				body GetListInternalErrorResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("status", "getList", err)
-			}
-			err = ValidateGetListInternalErrorResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("status", "getList", err)
-			}
-			return nil, NewGetListInternalError(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("status", "getList", resp.StatusCode, string(body))

@@ -11,13 +11,41 @@
             "mode": "auto",
             "program": "main.go",
             "env": {
-                "STATUSLISTE_DATABASE_PARAMS":"sslmode:disable",
-                "STATUSLIST_DATABASE_USER":"postgres",
-                "STATUSLIST_LISTEN_PORT":"8081",
-                "STATUSLIST_SIGNER_URL":"http://localhost:8080/v1",
-                "STATUSLIST_DEFAULT_KEY":"eckey",
-                "STATUSLIST_DEFAULT_DID":"did:jwk:eyJjcnYiOiJQLTI1NiIsImtpZCI6ImVja2V5Iiwia3R5IjoiRUMiLCJ4IjoiX3ZaSG1QdWZQUW0yRW4yd1JlTjhHT3Ewd3ZpYVN2WmJldURuSjlzNThZUSIsInkiOiJvS2NmWWVwdUFBSmJfYm9lSEJjUmxBc2FnOXR1T0h1N2RZT0xvRUZZLWRnIn0="
+                "STATUSLIST_LOG_LEVEL": "debug",
+                "STATUSLIST_IS_DEV": "true",
+                "STATUSLIST_LISTEN_ADDR": "0.0.0.0",
+                "STATUSLIST_LISTEN_PORT": "8080",
+                "STATUSLIST_DATABASE_HOST": "localhost",
+                "STATUSLIST_DATABASE_PORT": "5432",
+                "STATUSLIST_DATABASE_DATABASE": "statuslist",
+                "STATUSLIST_DATABASE_USER": "statuslist",
+                "STATUSLIST_DATABASE_PASSWORD": "statuslist",
+                "STATUSLIST_DATABASE_PARAMS": "sslmode:disable",
+                "STATUSLIST_NATS_URL": "nats://localhost:4222",
+                "STATUSLIST_NATS_QUEUE_GROUP": "statuslist-service",
+                "STATUSLIST_NATS_REQUEST_TIMEOUT": "10s",
+                "STATUSLIST_CREATION_TOPIC": "status.data.create",
+                "STATUSLIST_SIGNER_TOPIC": "signer",
+                "STATUSLIST_SIGNER_URL": "http://localhost:8081",
+                "STATUSLIST_LISTSIZEINBYTES": "16384",
+                "STATUSLIST_DEFAULT_KEY": "test-key",
+                "STATUSLIST_DEFAULT_DID":"did:jwk:eyJjcnYiOiJQLTI1NiIsImtpZCI6ImVja2V5Iiwia3R5IjoiRUMiLCJ4IjoiX3ZaSG1QdWZQUW0yRW4yd1JlTjhHT3Ewd3ZpYVN2WmJldURuSjlzNThZUSIsInkiOiJvS2NmWWVwdUFBSmJfYm9lSEJjUmxBc2FnOXR1T0h1N2RZT0xvRUZZLWRnIn0=",
+                "STATUSLIST_DEFAULT_NAMESPACE": "default",
+                "STATUSLIST_DEFAULT_HOST": "http://localhost:8080",
+                "STATUSLIST_DEFAULT_LISTTYPE": "BitstringStatusListCredential"
             }
+        },
+        {
+                "name": "Mock Signer",
+                "type": "go",
+                "request": "launch",
+                "mode": "auto",
+                "program": "${workspaceFolder}/mock/signer",
+                "cwd": "${workspaceFolder}/mock/signer",
+                "env": {
+                    "NATS_URL": "nats://localhost:4222",
+                    "SIGNER_TOPIC": "signer"
+                }
         }
     ]
 }

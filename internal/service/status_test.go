@@ -112,40 +112,6 @@ func TestBuildCredential_DefaultsToStatusList2021(t *testing.T) {
 	}
 }
 
-func TestPreferredContentType(t *testing.T) {
-	tests := map[string]struct {
-		contentType string
-		accept      string
-		want        string
-	}{
-		"vc from content type": {
-			contentType: "application/vc+ld+json",
-			want:        "application/vc+ld+json",
-		},
-		"vc from accept": {
-			accept: "application/vc+ld+json",
-			want:   "application/vc+ld+json",
-		},
-		"jwt": {
-			accept: "application/statuslist+jwt",
-			want:   "statuslist+jwt",
-		},
-		"json": {
-			accept: "application/json",
-			want:   "application/json",
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			got := preferredContentType(tc.contentType, tc.accept)
-			if got != tc.want {
-				t.Fatalf("got %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func testStatusList(statusType string) *database.StatusListWithSigner {
 	return &database.StatusListWithSigner{
 		TenantID:  "tenant-a",

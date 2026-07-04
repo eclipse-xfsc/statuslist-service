@@ -22,20 +22,6 @@ type RevokeResponseBody struct {
 	Status   *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 }
 
-// GetListBadRequestResponseBody is the type of the "status" service "getList"
-// endpoint HTTP response body for the "bad_request" error.
-type GetListBadRequestResponseBody struct {
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	Status  *int    `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
-}
-
-// GetListInternalErrorResponseBody is the type of the "status" service
-// "getList" endpoint HTTP response body for the "internal_error" error.
-type GetListInternalErrorResponseBody struct {
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	Status  *int    `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
-}
-
 // RevokeBadRequestResponseBody is the type of the "status" service "revoke"
 // endpoint HTTP response body for the "bad_request" error.
 type RevokeBadRequestResponseBody struct {
@@ -48,28 +34,6 @@ type RevokeBadRequestResponseBody struct {
 type RevokeInternalErrorResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 	Status  *int    `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
-}
-
-// NewGetListBadRequest builds a status service getList endpoint bad_request
-// error.
-func NewGetListBadRequest(body *GetListBadRequestResponseBody) *status.ErrorResult {
-	v := &status.ErrorResult{
-		Message: *body.Message,
-		Status:  *body.Status,
-	}
-
-	return v
-}
-
-// NewGetListInternalError builds a status service getList endpoint
-// internal_error error.
-func NewGetListInternalError(body *GetListInternalErrorResponseBody) *status.ErrorResult {
-	v := &status.ErrorResult{
-		Message: *body.Message,
-		Status:  *body.Status,
-	}
-
-	return v
 }
 
 // NewRevokeResultViewOK builds a "status" service "revoke" endpoint result
@@ -105,30 +69,6 @@ func NewRevokeInternalError(body *RevokeInternalErrorResponseBody) *status.Error
 	}
 
 	return v
-}
-
-// ValidateGetListBadRequestResponseBody runs the validations defined on
-// getList_bad_request_response_body
-func ValidateGetListBadRequestResponseBody(body *GetListBadRequestResponseBody) (err error) {
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	if body.Status == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("status", "body"))
-	}
-	return
-}
-
-// ValidateGetListInternalErrorResponseBody runs the validations defined on
-// getList_internal_error_response_body
-func ValidateGetListInternalErrorResponseBody(body *GetListInternalErrorResponseBody) (err error) {
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	if body.Status == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("status", "body"))
-	}
-	return
 }
 
 // ValidateRevokeBadRequestResponseBody runs the validations defined on

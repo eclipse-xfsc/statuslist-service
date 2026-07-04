@@ -21,20 +21,6 @@ type RevokeResponseBody struct {
 	Status   string `form:"status" json:"status" xml:"status"`
 }
 
-// GetListBadRequestResponseBody is the type of the "status" service "getList"
-// endpoint HTTP response body for the "bad_request" error.
-type GetListBadRequestResponseBody struct {
-	Message string `form:"message" json:"message" xml:"message"`
-	Status  int    `form:"status" json:"status" xml:"status"`
-}
-
-// GetListInternalErrorResponseBody is the type of the "status" service
-// "getList" endpoint HTTP response body for the "internal_error" error.
-type GetListInternalErrorResponseBody struct {
-	Message string `form:"message" json:"message" xml:"message"`
-	Status  int    `form:"status" json:"status" xml:"status"`
-}
-
 // RevokeBadRequestResponseBody is the type of the "status" service "revoke"
 // endpoint HTTP response body for the "bad_request" error.
 type RevokeBadRequestResponseBody struct {
@@ -61,26 +47,6 @@ func NewRevokeResponseBody(res *statusviews.RevokeResultView) *RevokeResponseBod
 	return body
 }
 
-// NewGetListBadRequestResponseBody builds the HTTP response body from the
-// result of the "getList" endpoint of the "status" service.
-func NewGetListBadRequestResponseBody(res *status.ErrorResult) *GetListBadRequestResponseBody {
-	body := &GetListBadRequestResponseBody{
-		Message: res.Message,
-		Status:  res.Status,
-	}
-	return body
-}
-
-// NewGetListInternalErrorResponseBody builds the HTTP response body from the
-// result of the "getList" endpoint of the "status" service.
-func NewGetListInternalErrorResponseBody(res *status.ErrorResult) *GetListInternalErrorResponseBody {
-	body := &GetListInternalErrorResponseBody{
-		Message: res.Message,
-		Status:  res.Status,
-	}
-	return body
-}
-
 // NewRevokeBadRequestResponseBody builds the HTTP response body from the
 // result of the "revoke" endpoint of the "status" service.
 func NewRevokeBadRequestResponseBody(res *status.ErrorResult) *RevokeBadRequestResponseBody {
@@ -102,11 +68,10 @@ func NewRevokeInternalErrorResponseBody(res *status.ErrorResult) *RevokeInternal
 }
 
 // NewGetListPayload builds a status service getList endpoint payload.
-func NewGetListPayload(tenantID string, listID int, contentType *string, accept *string) *status.GetListPayload {
+func NewGetListPayload(listID int, tenantID string, accept *string) *status.GetListPayload {
 	v := &status.GetListPayload{}
-	v.TenantID = tenantID
 	v.ListID = listID
-	v.ContentType = contentType
+	v.TenantID = tenantID
 	v.Accept = accept
 
 	return v

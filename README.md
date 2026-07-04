@@ -131,3 +131,145 @@ By using this service the proper format of the final statuslist format must be c
 ### Nats Interface
 
 The service listens on a Nats for [Statuslist Creation Requests](https://github.com/eclipse-xfsc/nats-message-library/-/raw/main/status.go?ref_type=heads) and returns with a reply of the statuslink which can be embedded in JWTs or credentials. 
+
+# Multi-Tenancy
+
+The Status List Service is designed as a tenant-aware infrastructure component. Every status list belongs to exactly one tenant and is isolated at the persistence and signing layers.
+
+## Tenant Resolution
+
+Unlike the messaging API, the REST API does not expose the tenant identifier as part of the URL.
+
+Instead, the tenant is supplied through an HTTP request header:
+```
+X-Tenant-Id: tenant-a
+```
+Example:
+```
+GET /status/42
+X-Tenant-Id: tenant-a
+Accept: application/vc+ld+json
+```
+This is an intentional architectural decision.
+
+The assumption is that tenant onboarding, DNS management, TLS certificates, and ingress routing are handled by a dedicated Tenant Management component. That component owns the public domains of the tenants and configures the ingress controller (or API gateway) accordingly.
+
+A typical deployment looks like this:
+```
+Tenant Management
+        │
+        ▼
+tenant.example.com
+        │
+        ▼
+Ingress / Gateway
+        │ injects X-Tenant-Id
+        ▼
+Status List Service
+```
+Because the ingress already knows which tenant owns a particular hostname, it can inject the correct X-Tenant-Id header before forwarding the request to the Status List Service.
+
+This provides several advantages:
+
+* REST endpoints remain stable (/status/{listId}).
+* Tenant information cannot be manipulated through URL paths.
+* DNS, routing, and tenant ownership are managed in a single place.
+* Multiple services can share the same tenant resolution mechanism.
+* Internal services only operate on an authenticated tenant context.
+
+## Messaging API
+
+For NATS-based communication, the tenant identifier is carried inside the message payload (tenantId) because there is no HTTP gateway responsible for tenant resolution.
+
+## Security Considerations
+
+The Status List Service trusts the injected tenant header only when requests originate from the configured ingress or API gateway. The service is therefore intended to be deployed behind a trusted reverse proxy and should not be exposed directly to the public Internet without appropriate authentication and header validation.
+
+
+# Makefile Commands
+
+The project includes a Makefile for common development, testing, Goa generation, Docker Compose, and mock workflows.
+
+## Goa Code Generation
+
+Generates the Goa transport and endpoint code from design/design.go.
+```
+make goa-gen
+```
+Removes the generated Goa output and regenerates it.
+```
+make goa-regenerate
+```
+
+## Development
+
+These commands format the code, run tests, build the service, or start the service locally.
+
+```
+make fmt
+make test
+make build
+make run
+```
+
+## Docker Compose
+
+These commands start, stop, restart, inspect logs, or fully clean the local Docker Compose environment.
+
+```
+make compose-up
+make compose-down
+make compose-restart
+make compose-logs
+make compose-clean
+```
+
+
+Database shell:
+
+```
+make db-shell
+```
+NATS shell:
+```
+make nats-shell
+```
+## Mock Status List Creation
+
+The mock client creates status list entries over NATS and prints the returned status list URL.
+```
+make mock-create-bitstring
+make mock-create-statuslist2021
+```
+Create multiple entries:
+```
+make mock-create-many-bitstring
+make mock-create-many-statuslist2021
+```
+The mock supports all configured list types:
+```
+make mock-create-bitstring-list
+make mock-create-statuslist2021-credential
+```
+### Fetch Status Lists
+
+The REST API expects the tenant to be injected via header:
+```
+X-Tenant-Id: tenant-a
+```
+Fetch the technical JSON representation:
+```
+make get-status-json LIST_ID=1 TENANT_ID=tenant-a
+```
+Fetch the VC-LD representation:
+```
+make get-status-vcld LIST_ID=1 TENANT_ID=tenant-a
+```
+Fetch the JWT representation:
+```
+make get-status-jwt LIST_ID=1 TENANT_ID=tenant-a
+```
+You can override the service URL:
+```
+make get-status-json SERVICE_URL=http://localhost:8080 TENANT_ID=tenant-a LIST_ID=1
+```

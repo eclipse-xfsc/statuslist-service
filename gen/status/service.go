@@ -47,10 +47,9 @@ type ErrorResult struct {
 
 // GetListPayload is the payload type of the status service getList method.
 type GetListPayload struct {
-	TenantID    string
-	ListID      int
-	ContentType *string
-	Accept      *string
+	TenantID string
+	ListID   int
+	Accept   *string
 }
 
 // RevokePayload is the payload type of the status service revoke method.
