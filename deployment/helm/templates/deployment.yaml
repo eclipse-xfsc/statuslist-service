@@ -58,9 +58,6 @@ spec:
             - name: STATUSLIST_NATS_URL
               value: {{ .Values.config.messaging.nats.url | quote }}
 
-            - name: STATUSLIST_NATS_QUEUE_GROUP
-              value: {{ .Values.config.messaging.nats.queueGroup | quote }}
-
             - name: STATUSLIST_NATS_REQUEST_TIMEOUT
               value: {{ .Values.config.messaging.nats.timeoutInSec | quote }}
 
@@ -90,6 +87,9 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             {{- end }}
+            - name: STATUSLIST_NATS_QUEUE_GROUP
+              value: {{ .Values.config.messaging.nats.queueGroup | quote }}
+
              {{- if $injectionEnabled }}
             - name: STATUSLIST_DATABASE_DATABASE
               value: {{ .Release.Name | replace "-" "_" }}
