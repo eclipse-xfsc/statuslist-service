@@ -30,7 +30,7 @@ func main() {
 	ctx = ctxPkg.WithLogger(ctx, *logger)
 	config.SetLogger(*logger)
 
-	dbConf := &currentConf.Database
+	dbConf := &currentConf.Postgres
 
 	db, err := database.New(ctx, *dbConf, currentConf.ListSizeInBytes)
 	if err != nil {

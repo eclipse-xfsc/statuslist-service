@@ -61,29 +61,29 @@ spec:
             - name: STATUSLIST_NATS_REQUEST_TIMEOUT
               value: {{ .Values.config.messaging.nats.timeoutInSec | quote }}
 
-            - name: STATUSLIST_DATABASE_HOST
+            - name: STATUSLIST_POSTGRES_HOST
               value: {{ .Values.config.database.host | quote }}
 
-            - name: STATUSLIST_DATABASE_PORT
+            - name: STATUSLIST_POSTGRES_PORT
               value: {{ .Values.config.database.port | quote }}
 
-            - name: STATUSLIST_DATABASE_DATABASE
+            - name: STATUSLIST_POSTGRES_DATABASE
               value: {{ .Values.config.database.db | quote }}
 
-            - name: STATUSLIST_DATABASE_USER
+            - name: STATUSLIST_POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.config.database.secretName | quote }}
                   key: {{ .Values.config.database.usernameKey | quote }}
 
-            - name: STATUSLIST_DATABASE_PASSWORD
+            - name: STATUSLIST_POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.config.database.secretName | quote }}
                   key: {{ .Values.config.database.passwordKey | quote }}
 
             {{- with .Values.config.database.params }}
-            - name: STATUSLIST_DATABASE_PARAMS
+            - name: STATUSLIST_POSTGRES_PARAMS
               value: {{ . | quote }}
             {{- end }}
             {{- end }}
@@ -91,16 +91,16 @@ spec:
               value: {{ .Values.config.messaging.nats.queueGroup | quote }}
 
              {{- if $injectionEnabled }}
-            - name: STATUSLIST_DATABASE_DATABASE
+            - name: STATUSLIST_POSTGRES_DATABASE
               value: {{ .Release.Name | replace "-" "_" }}
 
-            - name: STATUSLIST_DATABASE_USER
+            - name: STATUSLIST_POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgres-credentials
                   key: "username"
 
-            - name: STATUSLIST_DATABASE_PASSWORD
+            - name: STATUSLIST_POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgres-credentials
