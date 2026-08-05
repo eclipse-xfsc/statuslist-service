@@ -1,0 +1,24 @@
+{{- if eq (get (default dict .Values.podAnnotations) "inject.xfsc.io/enabled") "true" }}
+apiVersion: resources.xfsc.io/v1alpha1
+kind: ResourceClaim
+metadata:
+  name: {{ .Release.Name }}-postgres
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: postgres
+
+  providerRef:
+    name: postgres
+
+  externalSecretRef:
+    name: {{ .Release.Name }}-postgres-credentials
+
+  parameters:
+    database: {{ .Release.Name | replace "-" "_" }}
+
+    # optional
+    schemas:
+      - public
+    # optional
+    extensions: []
+{{- end }}
