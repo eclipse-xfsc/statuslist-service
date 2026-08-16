@@ -1,78 +1,121 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{- .Release.Name  }}-deployment"
+  name: {{ printf "%s-deployment" .Release.Name | quote }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{ include "statuslistservice.selectorLabels" . }}
+    {{- include "statuslistservice.selectorLabels" . | nindent 4 }}
+
 spec:
   replicas: {{ .Values.replicaCount }}
+
   selector:
     matchLabels:
-      {{ include "statuslistservice.selectorLabels" . }}
+      {{- include "statuslistservice.selectorLabels" . | nindent 6 }}
+
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
+
   template:
     metadata:
       annotations:
-      {{- if .Values.podAnnotations }}
-      {{ toYaml .Values.podAnnotations | indent 8 }}
-      {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
-        {{ include "statuslistservice.selectorLabels" . }}
+        {{- include "statuslistservice.selectorLabels" . | nindent 8 }}
+
     spec:
       imagePullSecrets:
-        - name: {{ .Values.image.pullSecrets }}
+        - name: {{ .Values.image.pullSecrets | quote }}
+
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ default .Chart.AppVersion .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+
           ports:
             - containerPort: {{ .Values.config.servingPort }}
+
           volumeMounts:
             - mountPath: /app
               name: config-volume
+
           env:
+            {{- $podAnnotations := default dict .Values.podAnnotations }}
+            {{- $injectionEnabled := eq (default "false" (index $podAnnotations "inject.xfsc.io/enabled")) "true" }}
+
+            {{- if not $injectionEnabled }}
             - name: STATUSLIST_SIGNER_URL
-              value: {{ .Values.config.signerUrl }}
+              value: {{ .Values.config.signerUrl | quote }}
+
             - name: STATUSLIST_SIGNER_TOPIC
-              value: {{ .Values.config.signerTopic }}
+              value: {{ .Values.config.signerTopic | quote }}
+
+            - name: STATUSLIST_NATS_URL
+              value: {{ .Values.config.messaging.nats.url | quote }}
+
+            - name: STATUSLIST_NATS_REQUEST_TIMEOUT
+              value: {{ .Values.config.messaging.nats.timeoutInSec | quote }}
+
+            - name: STATUSLIST_POSTGRES_HOST
+              value: {{ .Values.config.database.host | quote }}
+
+            - name: STATUSLIST_POSTGRES_PORT
+              value: {{ .Values.config.database.port | quote }}
+
+            - name: STATUSLIST_POSTGRES_DATABASE
+              value: {{ .Values.config.database.db | quote }}
+
+            - name: STATUSLIST_POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.database.secretName | quote }}
+                  key: {{ .Values.config.database.usernameKey | quote }}
+
+            - name: STATUSLIST_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.database.secretName | quote }}
+                  key: {{ .Values.config.database.passwordKey | quote }}
+
+            {{- with .Values.config.database.params }}
+            - name: STATUSLIST_POSTGRES_PARAMS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            - name: STATUSLIST_NATS_QUEUE_GROUP
+              value: {{ .Values.config.messaging.nats.queueGroup | quote }}
+
+             {{- if $injectionEnabled }}
+            - name: STATUSLIST_POSTGRES_DATABASE
+              value: {{ .Release.Name | replace "-" "_" }}
+
+            - name: STATUSLIST_POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgres-credentials
+                  key: "username"
+
+            - name: STATUSLIST_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgres-credentials
+                  key: "password"
+
+            {{- end }}
             - name: STATUSLIST_LISTSIZEINBYTES
               value: {{ .Values.config.listSizeInBytes | quote }}
-            - name: STATUSLIST_NATS_URL
-              value: {{ .Values.config.messaging.nats.url }}
-            - name: STATUSLIST_NATS_QUEUE_GROUP
-              value: {{ .Values.config.messaging.nats.queueGroup }}
-            - name: STATUSLIST_NATS_REQUEST_TIMEOUT
-              value: {{ .Values.config.messaging.nats.timeoutInSec | quote  }}
-            - name: STATUSLIST_DATABASE_HOST
-              value: {{ .Values.config.database.host }}
-            - name: STATUSLIST_DATABASE_PORT
-              value: {{ .Values.config.database.port | quote  }}
-            - name: STATUSLIST_DATABASE_DATABASE
-              value: {{ .Values.config.database.db }}
-            - name: STATUSLIST_DATABASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.config.database.secretName }}
-                  key: {{ .Values.config.database.usernameKey }}
-              {{- if .Values.config.database.params}}
-            - name: STATUSLIST_DATABASE_PARAMS
-              value: {{ .Values.config.database.params }}
-              {{- end}}
-            - name: STATUSLIST_DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.config.database.secretName }}
-                  key: {{ .Values.config.database.passwordKey }}
-      {{- if .Values.resources }}
+
+          {{- with .Values.resources }}
           resources:
-{{ toYaml .Values.resources | indent 10 }}
-      {{- end }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
       volumes:
         - name: config-volume
           configMap:
-            name: "{{ .Release.Name }}-configmap"
+            name: {{ printf "%s-configmap" .Release.Name | quote }}

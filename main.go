@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"sync"
 
 	ctxPkg "github.com/eclipse-xfsc/microservice-core-go/pkg/ctx"
 	logPkg "github.com/eclipse-xfsc/microservice-core-go/pkg/logr"
 	"github.com/eclipse-xfsc/statuslist-service/internal/api"
 	"github.com/eclipse-xfsc/statuslist-service/internal/config"
 	"github.com/eclipse-xfsc/statuslist-service/internal/database"
+	"github.com/eclipse-xfsc/statuslist-service/internal/service"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -27,13 +29,20 @@ func main() {
 
 	ctx = ctxPkg.WithLogger(ctx, *logger)
 	config.SetLogger(*logger)
-	dbConf := &currentConf.Database
+
+	dbConf := &currentConf.Postgres
 
 	db, err := database.New(ctx, *dbConf, currentConf.ListSizeInBytes)
-
 	if err != nil {
 		log.Fatalf("database cant be established: %v", err)
 	}
+	defer db.Close()
 
-	api.Listen(db, currentConf)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go api.StartMessaging(currentConf, &wg, db)
+	go service.StartGoa(currentConf, &wg, db)
+
+	wg.Wait()
 }

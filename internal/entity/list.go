@@ -25,19 +25,18 @@ func NewList(listSizeInBytes int) *List {
 	}
 }
 
-func (b *List) CheckBitAtIndex(index int) bool {
-	if len(b.List) == 0 {
-		return false
-	}
-	byteIndex, bitIndex := index/8, index%8
-
-	return (b.List[byteIndex] & (1 << bitIndex)) != 0
-
+func bitMask(index int) byte {
+	return byte(1 << (7 - (index % 8)))
 }
 
-func (b *List) RevokeAtIndex(index int) {
-	byteIndex, bitIndex := index/8, index%8
-	b.List[byteIndex] |= (1 << bitIndex)
+func (l *List) RevokeAtIndex(index int) {
+	byteIndex := index / 8
+	l.List[byteIndex] |= bitMask(index)
+}
+
+func (l *List) CheckBitAtIndex(index int) bool {
+	byteIndex := index / 8
+	return l.List[byteIndex]&bitMask(index) != 0
 }
 
 func (b *List) AllocateNextFreeIndex() (index int, err error) {

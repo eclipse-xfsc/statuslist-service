@@ -1,17 +1,103 @@
-version: '3.9'
-name: status-list-service
 services:
   postgres:
-    image: postgres:14-alpine
-    ports:
-      - 5432:5432
-    volumes:
-      - ~/apps/postgres:/var/lib/postgresql/data
+    image: postgres:16-alpine
+    container_name: statuslist-postgres
     environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=postgres
-  nats:
-    image: nats:2.10.10
+      POSTGRES_DB: statuslist
+      POSTGRES_USER: statuslist
+      POSTGRES_PASSWORD: statuslist
     ports:
-      - 4222:4222
+      - "5432:5432"
+    volumes:
+      - statuslist-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statuslist -d statuslist"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - statuslist
+
+  nats:
+    image: nats:2.14.3-alpine
+    container_name: statuslist-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command:
+      - "-js"
+      - "-m"
+      - "8222"
+    networks:
+      - statuslist
+
+  signer:
+    build:
+      context: ../../mock/signer
+    container_name: statuslist-signer-mock
+    environment:
+      NATS_URL: nats://nats:4222
+      SIGNER_TOPIC: signer
+    ports:
+      - "8081:8080"
+    depends_on:
+      nats:
+        condition: service_started
+    networks:
+      - statuslist
+
+  # statuslist-service:
+  #   image: golang:1.24-alpine
+  #   container_name: statuslist-service
+  #   working_dir: /workspace
+  #   volumes:
+  #     - .:/workspace
+  #     - go-mod-cache:/go/pkg/mod
+  #     - go-build-cache:/root/.cache/go-build
+  #   command: sh -c "go mod download && go run ."
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     STATUSLIST_LOG_LEVEL: info
+  #     STATUSLIST_IS_DEV: "true"
+  #     STATUSLIST_LISTEN_ADDR: 0.0.0.0
+  #     STATUSLIST_LISTEN_PORT: "8080"
+
+  #     STATUSLIST_DATABASE_HOST: postgres
+  #     STATUSLIST_DATABASE_PORT: "5432"
+  #     STATUSLIST_DATABASE_DATABASE: statuslist
+  #     STATUSLIST_DATABASE_USER: statuslist
+  #     STATUSLIST_DATABASE_PASSWORD: statuslist
+  #     STATUSLIST_DATABASE_PARAMS: sslmode:disable
+
+  #     STATUSLIST_NATS_URL: nats://nats:4222
+  #     STATUSLIST_NATS_QUEUEGROUP: statuslist-service
+  #     STATUSLIST_NATS_TIMEOUTINSEC: "10"
+
+  #     STATUSLIST_CREATIONTOPIC: status.data.create
+  #     STATUSLIST_SIGNER_TOPIC: signer
+  #     STATUSLIST_SIGNER_URL: http://signer:8080
+  #     STATUSLIST_LISTSIZEINBYTES: "16384"
+
+  #     STATUSLIST_DEFAULT_KEY: test
+  #     STATUSLIST_DEFAULT_DID: did:web:localhost:8080
+  #     STATUSLIST_DEFAULT_NAMESPACE: transit
+  #     STATUSLIST_DEFAULT_GROUP: ""
+  #     STATUSLIST_DEFAULT_HOST: http://localhost:8080
+  #     STATUSLIST_DEFAULT_LISTTYPE: BitstringStatusListCredential
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     nats:
+  #       condition: service_started
+
+volumes:
+  statuslist-postgres-data:
+  go-mod-cache:
+  go-build-cache:
+
+
+
+networks:
+  statuslist:
+    driver: bridge

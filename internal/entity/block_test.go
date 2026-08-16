@@ -16,22 +16,14 @@ func TestNewListWithCorrectSizeAndFreeCount(t *testing.T) {
 	require.Equal(t, wantedFreeSize, newList.Free)
 }
 
-func TestRevokeIndexInList(t *testing.T) {
+func TestRevokeIndex7InList(t *testing.T) {
+
 	byteListSize := 2
-
-	wantedList := make([]byte, byteListSize)
-	for i := range wantedList {
-		if i == 0 {
-			wantedList[i] = 128
-		} else {
-			wantedList[i] = 0
-		}
-	}
-
+	wantedList := []byte{0x01, 0x00}
 	list := NewList(byteListSize)
 	list.RevokeAtIndex(7)
-
 	require.Equal(t, wantedList, list.List)
+
 }
 
 func TestGetNextFreeIndexAndReduceFreeCount(t *testing.T) {
