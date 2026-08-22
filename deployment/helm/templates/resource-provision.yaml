@@ -1,0 +1,23 @@
+{{- if eq (get (default dict .Values.podAnnotations) "inject.xfsc.io/enabled") "true" }}
+{{- $serviceName := .Chart.Name -}}
+{{- $serviceURL := printf "http://%s.%s.svc.cluster.local:%v" $serviceName .Release.Namespace .Values.service.port -}}
+
+apiVersion: resources.xfsc.io/v1alpha1
+kind: ResourceProvider
+metadata:
+  name: statuslist
+spec:
+  type: statuslist
+  scope: {{ .Values.resourceProvider.scope | quote }}
+  description: {{ .Values.resourceProvider.description | quote }}
+{{- with .Values.resourceProvider.allow.namespaces }}
+  allow:
+    namespaces:
+{{ toYaml . | indent 6 }}
+{{- end }}
+  outputs:
+    env:
+      STATUSLIST_URL: {{ $serviceURL | quote }}
+      STATUSLIST_CREATE_TOPIC: {{ .Values.resourceProvider.createTopic | quote }}
+      STATUSLIST_VERIFY_TOPIC: {{ .Values.resourceProvider.verifyTopic | quote }}
+{{- end }}

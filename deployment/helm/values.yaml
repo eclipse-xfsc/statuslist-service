@@ -53,6 +53,14 @@ ingress:
         - cloud-wallet.xfsc.dev
 
 
+resourceProvider:
+  scope: Namespaced
+  description: "XFSC Status List Service"
+  createTopic: "statuslist.create"
+  verifyTopic: "statuslist.verify"
+  allow:
+    namespaces: []
+
 config:
   messaging:
     protocol: nats
