@@ -7,5 +7,5 @@ spec:
   selector:
     {{ include "statuslistservice.selectorLabels" . }}
   ports:
-    - port: 8080
+    - port: {{ .Values.service.port }}
       protocol: TCP

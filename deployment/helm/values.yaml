@@ -52,6 +52,8 @@ ingress:
       hosts:
         - cloud-wallet.xfsc.dev
 
+service:
+  port: 8080
 
 resourceProvider:
   scope: Namespaced
