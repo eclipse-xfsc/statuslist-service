@@ -106,11 +106,10 @@ func (s *StatusService) GetList(ctx context.Context, p *status.GetListPayload) (
 
 	default:
 		return map[string]any{
-			"tenantId": p.TenantID,
-			"listId":   p.ListID,
-			"type":     normalizedListType(statusList.Type),
-			"purpose":  purposeOrDefault(statusList.Purpose),
-			"list":     encodedList,
+			"listId":  p.ListID,
+			"type":    normalizedListType(statusList.Type),
+			"purpose": purposeOrDefault(statusList.Purpose),
+			"list":    encodedList,
 		}, nil
 	}
 }
