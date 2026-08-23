@@ -19,47 +19,8 @@ paths:
                         application/json:
                             schema:
                                 type: string
-                                example: Necessitatibus doloribus in veritatis qui.
-                            example: Ipsa voluptates distinctio nihil eos dolor.
-    /status/{listId}:
-        get:
-            tags:
-                - status
-            summary: getList status
-            description: Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.
-            operationId: status#getList
-            parameters:
-                - name: listId
-                  in: path
-                  required: true
-                  schema:
-                    type: integer
-                    example: 2113381193853987314
-                    format: int64
-                  example: 793274971772924104
-                - name: X-Tenant-Id
-                  in: header
-                  allowEmptyValue: true
-                  required: true
-                  schema:
-                    type: string
-                    example: Soluta tempora omnis iure et aut.
-                  example: Sit non ut nostrum et qui impedit.
-                - name: Accept
-                  in: header
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    example: Aliquid in non ut et magni.
-                  example: Sit eaque dolore commodi temporibus qui sunt.
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                example: Est sunt fuga a.
-                            example: Dolores et aspernatur perferendis quasi reiciendis.
+                                example: Eos dolor consectetur itaque sunt soluta.
+                            example: Nostrum et qui impedit.
     /status/{tenantId}/{listId}/revoke/{index}:
         post:
             tags:
@@ -73,24 +34,24 @@ paths:
                   required: true
                   schema:
                     type: string
-                    example: Officia et repudiandae et molestiae labore.
-                  example: Tempore ad voluptas nihil cumque corporis.
+                    example: Eligendi mollitia aut.
+                  example: Nesciunt illo necessitatibus esse et quas.
                 - name: listId
                   in: path
                   required: true
                   schema:
                     type: integer
-                    example: 2610346682166145381
+                    example: 8241164471203716713
                     format: int64
-                  example: 9180807483828302258
+                  example: 4071898898058540969
                 - name: index
                   in: path
                   required: true
                   schema:
                     type: integer
-                    example: 7861203698842419081
+                    example: 8132532975817278843
                     format: int64
-                  example: 969487697790967545
+                  example: 5789449076494185776
             responses:
                 "200":
                     description: OK response.
@@ -99,10 +60,10 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/XfscStatusListRevoke'
                             example:
-                                index: 3930967623290764634
-                                listId: 5730539016118596574
-                                status: Aut a nesciunt.
-                                tenantId: Et laboriosam vel sunt magni id voluptatum.
+                                index: 8373912765981977176
+                                listId: 4776042239491796006
+                                status: Dolorem cupiditate maiores esse.
+                                tenantId: Aliquid ex porro illo fugit.
                 "400":
                     description: 'bad_request: Bad Request response.'
                     content:
@@ -110,8 +71,8 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/XfscError'
                             example:
-                                message: Qui accusamus.
-                                status: 1886340408761926525
+                                message: Minus quia perferendis iure qui.
+                                status: 5448277403818738703
                 "500":
                     description: 'internal_error: Internal Server Error response.'
                     content:
@@ -119,8 +80,53 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/XfscError'
                             example:
-                                message: Dolor accusantium ab officia odit quis.
-                                status: 4629432125991665016
+                                message: Veniam dicta non voluptatem.
+                                status: 9113095539974995838
+    /v1/tenants/{tenantId}/status/{listId}:
+        get:
+            tags:
+                - status
+            summary: getList status
+            description: Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.
+            operationId: status#getList
+            parameters:
+                - name: tenantId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                    example: Aliquid in non ut et magni.
+                  example: Sit eaque dolore commodi temporibus qui sunt.
+                - name: listId
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+                    example: 2706143008988716459
+                    format: int64
+                  example: 8009858722958566378
+                - name: Accept
+                  in: header
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: Aspernatur perferendis quasi reiciendis facilis officia.
+                  example: Repudiandae et molestiae labore officiis tempore.
+                - name: X-Group-Id
+                  in: header
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    example: Voluptas nihil cumque corporis ratione temporibus ut.
+                  example: Ut et.
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                example: Omnis iure et aut officia sit non.
+                            example: Vel sunt magni id voluptatum.
 components:
     schemas:
         XfscError:
@@ -128,14 +134,14 @@ components:
             properties:
                 message:
                     type: string
-                    example: Qui adipisci sed est.
+                    example: Veritatis qui sed est sunt.
                 status:
                     type: integer
-                    example: 6184804881049467816
+                    example: 8957644760419840764
                     format: int64
             example:
-                message: Pariatur saepe voluptatem.
-                status: 570516531640558798
+                message: Dolorem ipsa voluptates.
+                status: 1326464516481511563
             required:
                 - message
                 - status
@@ -144,18 +150,18 @@ components:
             properties:
                 list:
                     type: string
-                    example: Illo sit natus.
+                    example: Rem magnam quis vel ex aut ratione.
                 listId:
                     type: integer
-                    example: 8068686243924224578
+                    example: 5978219193760281404
                     format: int64
                 tenantId:
                     type: string
-                    example: Nobis quod velit placeat animi tempore.
+                    example: Illo sit natus.
             example:
-                list: Vel ex aut ratione et sit et.
-                listId: 1663714144915302481
-                tenantId: Sed rem.
+                list: Delectus dolore.
+                listId: 8469546071820002919
+                tenantId: Sit et dolorem accusamus nihil ut.
             required:
                 - tenantId
                 - listId
@@ -165,23 +171,23 @@ components:
             properties:
                 index:
                     type: integer
-                    example: 3421304832824289482
+                    example: 1175042874615874555
                     format: int64
                 listId:
                     type: integer
-                    example: 8432596197339287520
+                    example: 1312543848096475825
                     format: int64
                 status:
                     type: string
-                    example: Tenetur aut assumenda.
+                    example: Non cupiditate rem dignissimos et.
                 tenantId:
                     type: string
-                    example: Accusamus nihil ut nobis.
+                    example: Aut assumenda quisquam aut aut.
             example:
-                index: 290659539145452584
-                listId: 4248965308005080749
-                status: Rem dignissimos et.
-                tenantId: Aut aut a voluptates.
+                index: 5042207198975027724
+                listId: 6184804881049467816
+                status: Saepe voluptatem et aspernatur necessitatibus doloribus.
+                tenantId: Qui adipisci sed est.
             required:
                 - tenantId
                 - listId

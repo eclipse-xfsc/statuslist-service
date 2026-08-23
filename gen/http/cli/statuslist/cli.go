@@ -48,9 +48,10 @@ func ParseEndpoint(
 		statusHealthFlags = flag.NewFlagSet("health", flag.ExitOnError)
 
 		statusGetListFlags        = flag.NewFlagSet("get-list", flag.ExitOnError)
-		statusGetListListIDFlag   = statusGetListFlags.String("list-id", "REQUIRED", "")
 		statusGetListTenantIDFlag = statusGetListFlags.String("tenant-id", "REQUIRED", "")
+		statusGetListListIDFlag   = statusGetListFlags.String("list-id", "REQUIRED", "")
 		statusGetListAcceptFlag   = statusGetListFlags.String("accept", "", "")
+		statusGetListGroupIDFlag  = statusGetListFlags.String("group-id", "", "")
 
 		statusRevokeFlags        = flag.NewFlagSet("revoke", flag.ExitOnError)
 		statusRevokeTenantIDFlag = statusRevokeFlags.String("tenant-id", "REQUIRED", "")
@@ -134,7 +135,7 @@ func ParseEndpoint(
 				endpoint = c.Health()
 			case "get-list":
 				endpoint = c.GetList()
-				data, err = statusc.BuildGetListPayload(*statusGetListListIDFlag, *statusGetListTenantIDFlag, *statusGetListAcceptFlag)
+				data, err = statusc.BuildGetListPayload(*statusGetListTenantIDFlag, *statusGetListListIDFlag, *statusGetListAcceptFlag, *statusGetListGroupIDFlag)
 			case "revoke":
 				endpoint = c.Revoke()
 				data, err = statusc.BuildRevokePayload(*statusRevokeTenantIDFlag, *statusRevokeListIDFlag, *statusRevokeIndexFlag)
@@ -179,9 +180,10 @@ func statusHealthUsage() {
 func statusGetListUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] status get-list", os.Args[0])
-	fmt.Fprint(os.Stderr, " -list-id INT")
 	fmt.Fprint(os.Stderr, " -tenant-id STRING")
+	fmt.Fprint(os.Stderr, " -list-id INT")
 	fmt.Fprint(os.Stderr, " -accept STRING")
+	fmt.Fprint(os.Stderr, " -group-id STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -189,13 +191,14 @@ func statusGetListUsage() {
 	fmt.Fprintln(os.Stderr, `Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -list-id INT: `)
 	fmt.Fprintln(os.Stderr, `    -tenant-id STRING: `)
+	fmt.Fprintln(os.Stderr, `    -list-id INT: `)
 	fmt.Fprintln(os.Stderr, `    -accept STRING: `)
+	fmt.Fprintln(os.Stderr, `    -group-id STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "status get-list --list-id 7180610089920843089 --tenant-id \"Magni ex dignissimos facilis ut.\" --accept \"Deserunt cum et est assumenda.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "status get-list --tenant-id \"Cum et est assumenda maiores.\" --list-id 3277189649316401044 --accept \"Perferendis sed.\" --group-id \"Necessitatibus recusandae.\"")
 }
 
 func statusRevokeUsage() {
@@ -217,5 +220,5 @@ func statusRevokeUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "status revoke --tenant-id \"Modi iure saepe fugiat fugiat quia rerum.\" --list-id 8306568783149687004 --index 3685248599561375189")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "status revoke --tenant-id \"Ut deserunt architecto qui est mollitia.\" --list-id 5611884691148507821 --index 7170127329952375427")
 }

@@ -73,16 +73,18 @@ func DecodeHealthResponse(decoder func(*http.Response) goahttp.Decoder, restoreB
 // set to call the "status" service "getList" endpoint
 func (c *Client) BuildGetListRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		listID int
+		tenantID string
+		listID   int
 	)
 	{
 		p, ok := v.(*status.GetListPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("status", "getList", "*status.GetListPayload", v)
 		}
+		tenantID = p.TenantID
 		listID = p.ListID
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetListStatusPath(listID)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetListStatusPath(tenantID, listID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("status", "getList", u.String(), err)
@@ -102,13 +104,13 @@ func EncodeGetListRequest(encoder func(*http.Request) goahttp.Encoder) func(*htt
 		if !ok {
 			return goahttp.ErrInvalidType("status", "getList", "*status.GetListPayload", v)
 		}
-		{
-			head := p.TenantID
-			req.Header.Set("X-Tenant-Id", head)
-		}
 		if p.Accept != nil {
 			head := *p.Accept
 			req.Header.Set("Accept", head)
+		}
+		if p.GroupID != nil {
+			head := *p.GroupID
+			req.Header.Set("X-Group-Id", head)
 		}
 		return nil
 	}

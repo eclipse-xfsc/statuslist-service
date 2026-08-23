@@ -68,6 +68,12 @@ func (s *StatusService) GetList(ctx context.Context, p *status.GetListPayload) (
 		return nil, err
 	}
 
+	groupid := ""
+
+	if p.GroupID != nil {
+		groupid = *p.GroupID
+	}
+
 	encodedList, err := encodeStatusList(statusList.Bitstring)
 	if err != nil {
 		return nil, err
@@ -79,6 +85,7 @@ func (s *StatusService) GetList(ctx context.Context, p *status.GetListPayload) (
 	case "application/statuslist+jwt":
 		token, err := signer.RequestTokenSigning(
 			p.TenantID,
+			groupid,
 			encodedList,
 			statusList.KeyRef,
 			statusList.Namespace,

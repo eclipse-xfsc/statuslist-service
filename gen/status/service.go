@@ -50,6 +50,7 @@ type GetListPayload struct {
 	TenantID string
 	ListID   int
 	Accept   *string
+	GroupID  *string
 }
 
 // RevokePayload is the payload type of the status service revoke method.

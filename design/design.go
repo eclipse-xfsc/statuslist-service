@@ -87,17 +87,23 @@ var _ = Service("status", func() {
 			Attribute("tenantId", String)
 			Attribute("listId", Int)
 			Attribute("accept", String)
+			Attribute("groupId", String)
+
 			Required("tenantId", "listId")
 		})
 
 		Result(Any)
 
 		HTTP(func() {
-			GET("/status/{listId}")
-			Header("tenantId:X-Tenant-Id")
-			Header("accept:Accept")
-			Response(StatusOK)
+			GET("/v1/tenants/{tenantId}/status/{listId}")
 
+			Param("tenantId")
+			Param("listId")
+
+			Header("accept:Accept")
+			Header("groupId:X-Group-Id")
+
+			Response(StatusOK)
 		})
 	})
 

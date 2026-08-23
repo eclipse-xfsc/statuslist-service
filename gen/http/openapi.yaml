@@ -26,33 +26,6 @@ paths:
                         type: string
             schemes:
                 - http
-    /status/{listId}:
-        get:
-            tags:
-                - status
-            summary: getList status
-            description: Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.
-            operationId: status#getList
-            parameters:
-                - name: listId
-                  in: path
-                  required: true
-                  type: integer
-                  format: int64
-                - name: X-Tenant-Id
-                  in: header
-                  required: true
-                  type: string
-                - name: Accept
-                  in: header
-                  required: false
-                  type: string
-            responses:
-                "200":
-                    description: OK response.
-                    schema: {}
-            schemes:
-                - http
     /status/{tenantId}/{listId}/revoke/{index}:
         post:
             tags:
@@ -90,6 +63,37 @@ paths:
                         $ref: '#/definitions/XfscError'
             schemes:
                 - http
+    /v1/tenants/{tenantId}/status/{listId}:
+        get:
+            tags:
+                - status
+            summary: getList status
+            description: Returns a status list as JSON, JWT status list, or StatusList2021 credential depending on Content-Type.
+            operationId: status#getList
+            parameters:
+                - name: tenantId
+                  in: path
+                  required: true
+                  type: string
+                - name: listId
+                  in: path
+                  required: true
+                  type: integer
+                  format: int64
+                - name: Accept
+                  in: header
+                  required: false
+                  type: string
+                - name: X-Group-Id
+                  in: header
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema: {}
+            schemes:
+                - http
 definitions:
     XfscError:
         title: 'Mediatype identifier: application/vnd.xfsc.error; view=default'
@@ -97,15 +101,15 @@ definitions:
         properties:
             message:
                 type: string
-                example: Vero molestiae vitae tenetur quae culpa quis.
+                example: Voluptatem nobis.
             status:
                 type: integer
-                example: 7286920244806130487
+                example: 3950872216741924270
                 format: int64
         description: revoke_bad_request_response_body result type (default view)
         example:
-            message: Aspernatur et qui pariatur est.
-            status: 222714087854666490
+            message: Placeat animi tempore.
+            status: 8068686243924224578
         required:
             - message
             - status
@@ -115,24 +119,24 @@ definitions:
         properties:
             index:
                 type: integer
-                example: 8022470757059323209
+                example: 6106311971333610863
                 format: int64
             listId:
                 type: integer
-                example: 5448277403818738703
+                example: 6746349156708932430
                 format: int64
             status:
                 type: string
-                example: Dicta non voluptatem.
+                example: Quo esse.
             tenantId:
                 type: string
-                example: Minus quia perferendis iure qui.
+                example: Sit vel quibusdam dolor.
         description: RevokeResponseBody result type (default view)
         example:
-            index: 1512202983677531911
-            listId: 1279122409532435157
-            status: Nemo voluptas nulla quo esse asperiores consectetur.
-            tenantId: Maiores sit.
+            index: 3647068932065593103
+            listId: 2832197977770443002
+            status: Ut nulla aspernatur et qui pariatur est.
+            tenantId: Consectetur error vero molestiae vitae tenetur.
         required:
             - tenantId
             - listId

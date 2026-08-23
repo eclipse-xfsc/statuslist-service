@@ -16,6 +16,7 @@ import (
 
 func RequestTokenSigning(
 	tenantID string,
+	groupid string,
 	statusList string,
 	key string,
 	namespace string,
@@ -71,6 +72,7 @@ func RequestTokenSigning(
 	req := messaging.CreateTokenRequest{
 		Request: common.Request{
 			TenantId:  tenantID,
+			GroupId:   groupid,
 			RequestId: uuid.NewString(),
 		},
 		Namespace: namespace,

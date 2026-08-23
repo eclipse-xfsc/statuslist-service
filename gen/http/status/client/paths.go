@@ -17,8 +17,8 @@ func HealthStatusPath() string {
 }
 
 // GetListStatusPath returns the URL path to the status service getList HTTP endpoint.
-func GetListStatusPath(listID int) string {
-	return fmt.Sprintf("/status/%v", listID)
+func GetListStatusPath(tenantID string, listID int) string {
+	return fmt.Sprintf("/v1/tenants/%v/status/%v", tenantID, listID)
 }
 
 // RevokeStatusPath returns the URL path to the status service revoke HTTP endpoint.

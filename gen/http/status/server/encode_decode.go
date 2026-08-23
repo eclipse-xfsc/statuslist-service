@@ -49,13 +49,15 @@ func DecodeGetListRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 	return func(r *http.Request) (*status.GetListPayload, error) {
 		var payload *status.GetListPayload
 		var (
-			listID   int
 			tenantID string
+			listID   int
 			accept   *string
+			groupID  *string
 			err      error
 
 			params = mux.Vars(r)
 		)
+		tenantID = params["tenantId"]
 		{
 			listIDRaw := params["listId"]
 			v, err2 := strconv.ParseInt(listIDRaw, 10, strconv.IntSize)
@@ -64,18 +66,18 @@ func DecodeGetListRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp
 			}
 			listID = int(v)
 		}
-		tenantID = r.Header.Get("X-Tenant-Id")
-		if tenantID == "" {
-			err = goa.MergeErrors(err, goa.MissingFieldError("tenantId", "header"))
-		}
 		acceptRaw := r.Header.Get("Accept")
 		if acceptRaw != "" {
 			accept = &acceptRaw
 		}
+		groupIDRaw := r.Header.Get("X-Group-Id")
+		if groupIDRaw != "" {
+			groupID = &groupIDRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetListPayload(listID, tenantID, accept)
+		payload = NewGetListPayload(tenantID, listID, accept, groupID)
 
 		return payload, nil
 	}

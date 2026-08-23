@@ -68,11 +68,12 @@ func NewRevokeInternalErrorResponseBody(res *status.ErrorResult) *RevokeInternal
 }
 
 // NewGetListPayload builds a status service getList endpoint payload.
-func NewGetListPayload(listID int, tenantID string, accept *string) *status.GetListPayload {
+func NewGetListPayload(tenantID string, listID int, accept *string, groupID *string) *status.GetListPayload {
 	v := &status.GetListPayload{}
-	v.ListID = listID
 	v.TenantID = tenantID
+	v.ListID = listID
 	v.Accept = accept
+	v.GroupID = groupID
 
 	return v
 }
