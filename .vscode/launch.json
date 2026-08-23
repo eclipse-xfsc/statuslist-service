@@ -24,7 +24,7 @@
                 "STATUSLIST_NATS_URL": "nats://localhost:4222",
                 "STATUSLIST_NATS_QUEUE_GROUP": "statuslist-service",
                 "STATUSLIST_NATS_REQUEST_TIMEOUT": "10s",
-                "STATUSLIST_CREATION_TOPIC": "status.data.create",
+                "STATUSLIST_TOPIC": "status.data",
                 "STATUSLIST_SIGNER_TOPIC": "signer",
                 "STATUSLIST_SIGNER_URL": "http://localhost:8081",
                 "STATUSLIST_LISTSIZEINBYTES": "16384",

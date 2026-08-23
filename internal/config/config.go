@@ -16,7 +16,7 @@ var logger logr.Logger
 type StatusListConfiguration struct {
 	config.BaseConfig `mapstructure:",squash"`
 	Postgres          pgPkg.Config                  `mapstructure:"postgres" envconfig:"POSTGRES"`
-	CreationTopic     string                        `mapstructure:"creationTopic" envconfig:"CREATIONTOPIC" default:"status.data.create"`
+	Topic             string                        `mapstructure:"Topic" envconfig:"CREATIONTOPIC" default:"status.data"`
 	ListSizeInBytes   int                           `mapstructure:"listSizeInBytes" envconfig:"LISTSIZEINBYTES" default:"1024"`
 	Nats              cloudeventprovider.NatsConfig `envconfig:"NATS"`
 	SignerTopic       string                        `envconfig:"SIGNER_TOPIC" default:"signer"`

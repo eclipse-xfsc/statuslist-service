@@ -18,6 +18,5 @@ spec:
   outputs:
     env:
       STATUSLIST_URL: {{ $serviceURL | quote }}
-      STATUSLIST_CREATE_TOPIC: {{ .Values.resourceProvider.createTopic | quote }}
-      STATUSLIST_VERIFY_TOPIC: {{ .Values.resourceProvider.verifyTopic | quote }}
+      STATUSLIST_TOPIC: {{ .Values.resourceProvider.topic | quote }}
 {{- end }}

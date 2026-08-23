@@ -20,7 +20,7 @@ func main() {
 			TimeoutInSec: time.Minute,
 		}},
 		cloudeventprovider.ConnectionTypeReq,
-		messaging.TopicStatusData,
+		messaging.EventTypeStatus,
 	)
 
 	reader := bufio.NewReader(os.Stdin)

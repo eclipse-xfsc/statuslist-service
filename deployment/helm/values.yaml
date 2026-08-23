@@ -58,8 +58,7 @@ service:
 resourceProvider:
   scope: Namespaced
   description: "XFSC Status List Service"
-  createTopic: "statuslist.create"
-  verifyTopic: "statuslist.verify"
+  topic: status.data
   allow:
     namespaces: []
 

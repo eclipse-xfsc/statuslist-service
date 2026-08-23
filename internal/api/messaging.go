@@ -281,7 +281,7 @@ func StartMessaging(conf *config.StatusListConfiguration, group *sync.WaitGroup,
 			Settings: conf.Nats,
 		},
 		cloudeventprovider.ConnectionTypeRep,
-		conf.CreationTopic,
+		conf.Topic,
 	)
 	if err != nil {
 		panic(err)
