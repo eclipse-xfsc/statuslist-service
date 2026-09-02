@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -12,6 +13,52 @@ import (
 	"github.com/eclipse-xfsc/statuslist-service/internal/config"
 	"github.com/eclipse-xfsc/statuslist-service/internal/database"
 )
+
+type statusListJWTEncoder struct {
+	w http.ResponseWriter
+}
+
+func (e *statusListJWTEncoder) Encode(v interface{}) error {
+	var token string
+
+	switch value := v.(type) {
+	case string:
+		token = value
+
+	case []byte:
+		token = string(value)
+
+	default:
+		return fmt.Errorf(
+			"status list JWT encoder: unsupported type %T",
+			v,
+		)
+	}
+
+	e.w.Header().Set(
+		"Content-Type",
+		"application/statuslist+jwt",
+	)
+
+	_, err := e.w.Write([]byte(token))
+	return err
+}
+
+func responseEncoder(
+	ctx context.Context,
+	w http.ResponseWriter,
+) goahttp.Encoder {
+
+	accept, _ := ctx.Value(goahttp.AcceptTypeKey).(string)
+
+	if accept == "application/statuslist+jwt" {
+		return &statusListJWTEncoder{
+			w: w,
+		}
+	}
+
+	return goahttp.ResponseEncoder(ctx, w)
+}
 
 func StartGoa(conf *config.StatusListConfiguration, group *sync.WaitGroup, db *database.Database) {
 	defer group.Done()
@@ -25,7 +72,7 @@ func StartGoa(conf *config.StatusListConfiguration, group *sync.WaitGroup, db *d
 		endpoints,
 		mux,
 		goahttp.RequestDecoder,
-		goahttp.ResponseEncoder,
+		responseEncoder,
 		nil,
 		nil,
 	)

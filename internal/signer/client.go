@@ -62,6 +62,7 @@ func RequestTokenSigning(
 
 	header := map[string]any{
 		"kid": did + "#" + key,
+		"typ": "statuslist+jwt",
 	}
 
 	headerBytes, err := json.Marshal(header)
