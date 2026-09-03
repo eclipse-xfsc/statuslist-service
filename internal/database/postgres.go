@@ -160,7 +160,7 @@ func (pc *postgresConnection) AllocateIndexInCurrentList(ctx context.Context, re
 			return nil, fmt.Errorf("insert new status list: %w", err)
 		}
 
-		statusURL := "/status/" + req.TenantID + "/" + strconv.Itoa(listID)
+		statusURL := req.TenantID + "/" + strconv.Itoa(listID)
 
 		_, err = tx.Exec(ctx, `
 			UPDATE status_lists

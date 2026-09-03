@@ -106,7 +106,7 @@ func handleCreate(ctx context.Context, event event.Event) (*event.Event, error) 
 		},
 		ListId:    statusData.ListId,
 		Index:     statusData.Index,
-		StatusUrl: eventData.Origin + statusData.StatusUrl,
+		StatusUrl: eventData.Origin + "/" + statusData.StatusUrl,
 		Purpose:   purposeOrDefault(eventData.Purpose),
 		Type:      typeOrDefault(eventData.Type),
 	}
