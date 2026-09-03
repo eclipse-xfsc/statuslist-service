@@ -177,7 +177,7 @@ func (pc *postgresConnection) AllocateIndexInCurrentList(ctx context.Context, re
 			return nil, fmt.Errorf("commit transaction: %w", err)
 		}
 
-		return entity.NewStatusData(index, listID), nil
+		return entity.NewStatusData(req.Origin, index, listID), nil
 	}
 
 	currentList := entity.List{
@@ -218,7 +218,7 @@ func (pc *postgresConnection) AllocateIndexInCurrentList(ctx context.Context, re
 		return nil, fmt.Errorf("commit transaction: %w", err)
 	}
 
-	return entity.NewStatusData(index, listID), nil
+	return entity.NewStatusData(req.Origin, index, listID), nil
 }
 
 func (pc *postgresConnection) GetStatusList(ctx context.Context, tenantId string, listId int) ([]byte, error) {
