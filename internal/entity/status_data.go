@@ -8,10 +8,10 @@ type StatusData struct {
 	StatusUrl string `json:"statusUrl"`
 }
 
-func NewStatusData(origin string, index int, listId int) *StatusData {
+func NewStatusData(index int, listId int) *StatusData {
 	return &StatusData{
 		ListId:    listId,
 		Index:     index,
-		StatusUrl: origin + "/" + fmt.Sprintf("%d", listId),
+		StatusUrl: fmt.Sprintf("%d", listId),
 	}
 }
