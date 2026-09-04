@@ -50,7 +50,7 @@ func RequestTokenSigning(
 			"lst":  statusList,
 		},
 		"iss": origin,
-		"sub": fmt.Sprintf("%s/status/%s/%d", strings.TrimRight(origin, "/"), tenantID, listID),
+		"sub": fmt.Sprintf("%s/%d", strings.TrimRight(origin, "/"), listID),
 		"iat": time.Now().Unix(),
 		"exp": time.Now().AddDate(1, 0, 0).Unix(),
 	}
