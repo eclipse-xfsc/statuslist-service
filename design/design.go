@@ -103,9 +103,7 @@ var _ = Service("status", func() {
 			Header("accept:Accept")
 			Header("groupId:X-Group-Id")
 
-			Response(StatusOK, func() {
-				ContentType("application/statuslist+jwt")
-			})
+			Response(StatusOK)
 		})
 	})
 

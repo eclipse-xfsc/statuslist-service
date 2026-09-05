@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"mime"
 	"net/http"
+	"strings"
 	"sync"
 
 	goahttp "goa.design/goa/v3/http"
@@ -48,10 +50,9 @@ func responseEncoder(
 	ctx context.Context,
 	w http.ResponseWriter,
 ) goahttp.Encoder {
-
 	accept, _ := ctx.Value(goahttp.AcceptTypeKey).(string)
 
-	if accept == "application/statuslist+jwt" {
+	if acceptsStatusListJWT(accept) {
 		return &statusListJWTEncoder{
 			w: w,
 		}
@@ -60,7 +61,41 @@ func responseEncoder(
 	return goahttp.ResponseEncoder(ctx, w)
 }
 
-func StartGoa(conf *config.StatusListConfiguration, group *sync.WaitGroup, db *database.Database) {
+func acceptsStatusListJWT(accept string) bool {
+	accept = strings.TrimSpace(accept)
+
+	//
+	// Wallet interoperability:
+	//
+	// Empty Accept and */* mean that the client accepts any
+	// representation. Since this endpoint returns a Status List JWT,
+	// prefer application/statuslist+jwt.
+	//
+	if accept == "" || accept == "*/*" {
+		return true
+	}
+
+	for _, part := range strings.Split(accept, ",") {
+		part = strings.TrimSpace(part)
+
+		mediaType, _, err := mime.ParseMediaType(part)
+		if err != nil {
+			continue
+		}
+
+		if mediaType == "application/statuslist+jwt" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func StartGoa(
+	conf *config.StatusListConfiguration,
+	group *sync.WaitGroup,
+	db *database.Database,
+) {
 	defer group.Done()
 
 	svc := NewStatusService(db)
@@ -79,9 +114,15 @@ func StartGoa(conf *config.StatusListConfiguration, group *sync.WaitGroup, db *d
 
 	statusserver.Mount(mux, server)
 
-	addr := fmt.Sprintf(":%d", conf.ListenPort)
+	addr := fmt.Sprintf(
+		":%d",
+		conf.ListenPort,
+	)
 
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(
+		addr,
+		mux,
+	); err != nil {
 		panic(err)
 	}
 }
