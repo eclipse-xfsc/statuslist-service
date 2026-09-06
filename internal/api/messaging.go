@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -10,7 +11,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/cloudevents/sdk-go/v2/event"
@@ -129,9 +132,8 @@ func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) 
 		return nil, err
 	}
 
-	if eventData.Type == "StatusList2021" || eventData.Type == "" {
-		request.Header.Add("Content-Type", "application/vc+ld+json")
-	}
+	accept := verifyStatusListAccept(eventData.Type)
+	request.Header.Set("Accept", accept)
 
 	res, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -195,37 +197,12 @@ func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) 
 		return nil, errors.New("credential verification failed")
 	}
 
-	var cred map[string]interface{}
-	if err := json.Unmarshal(respBody, &cred); err != nil {
-		log.Error(err)
-		return nil, err
+	contentType := res.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = accept
 	}
 
-	credentialSubject, ok := cred["credentialSubject"].(map[string]interface{})
-	if !ok {
-		return nil, errors.New("credentialSubject not found")
-	}
-
-	encodedList, ok := credentialSubject["encodedList"].(string)
-	if !ok {
-		return nil, errors.New("encodedList not found")
-	}
-
-	compressedList, err := base64.RawURLEncoding.DecodeString(encodedList)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	reader := bytes.NewReader(compressedList)
-	gzreader, err := gzip.NewReader(reader)
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-	defer gzreader.Close()
-
-	bitstring, err := io.ReadAll(gzreader)
+	bitstring, err := decodeVerifiedStatusList(respBody, contentType)
 	if err != nil {
 		log.Error(err)
 		return nil, err
@@ -267,6 +244,107 @@ func handleVerify(ctx context.Context, event event.Event) (*event.Event, error) 
 	}
 
 	return &answerEvent, nil
+}
+
+func verifyStatusListAccept(listType string) string {
+	value := strings.ToLower(strings.TrimSpace(listType))
+
+	switch value {
+	case "tokenstatuslist", "tokenstatuslistcredential", "jwtstatuslist", "statuslist+jwt":
+		return "application/statuslist+jwt"
+	default:
+		return "application/vc+ld+json"
+	}
+}
+
+func decodeVerifiedStatusList(body []byte, contentType string) ([]byte, error) {
+	mediaType := strings.TrimSpace(contentType)
+	if parsed, _, err := mime.ParseMediaType(mediaType); err == nil {
+		mediaType = parsed
+	}
+
+	if strings.EqualFold(mediaType, "application/statuslist+jwt") {
+		return decodeTokenStatusList(body)
+	}
+
+	return decodeCredentialStatusList(body)
+}
+
+func decodeTokenStatusList(body []byte) ([]byte, error) {
+	parts := strings.Split(strings.TrimSpace(string(body)), ".")
+	if len(parts) != 3 {
+		return nil, errors.New("invalid status list JWT")
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("decode status list JWT payload: %w", err)
+	}
+
+	var payload struct {
+		StatusList struct {
+			List string `json:"lst"`
+		} `json:"status_list"`
+	}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, fmt.Errorf("decode status list JWT payload JSON: %w", err)
+	}
+	if payload.StatusList.List == "" {
+		return nil, errors.New("status_list.lst not found")
+	}
+
+	compressedList, err := base64.RawURLEncoding.DecodeString(payload.StatusList.List)
+	if err != nil {
+		return nil, fmt.Errorf("decode status_list.lst: %w", err)
+	}
+
+	zr, err := zlib.NewReader(bytes.NewReader(compressedList))
+	if err != nil {
+		return nil, fmt.Errorf("open zlib status list: %w", err)
+	}
+	defer zr.Close()
+
+	bitstring, err := io.ReadAll(zr)
+	if err != nil {
+		return nil, fmt.Errorf("read zlib status list: %w", err)
+	}
+
+	return bitstring, nil
+}
+
+func decodeCredentialStatusList(body []byte) ([]byte, error) {
+	var cred map[string]interface{}
+	if err := json.Unmarshal(body, &cred); err != nil {
+		return nil, err
+	}
+
+	credentialSubject, ok := cred["credentialSubject"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("credentialSubject not found")
+	}
+
+	encodedList, ok := credentialSubject["encodedList"].(string)
+	if !ok {
+		return nil, errors.New("encodedList not found")
+	}
+
+	compressedList, err := base64.RawURLEncoding.DecodeString(encodedList)
+	if err != nil {
+		return nil, err
+	}
+
+	gzreader, err := gzip.NewReader(bytes.NewReader(compressedList))
+	if err != nil {
+		return nil, err
+	}
+	defer gzreader.Close()
+
+	bitstring, err := io.ReadAll(gzreader)
+	if err != nil {
+		return nil, err
+	}
+
+	return bitstring, nil
 }
 
 func StartMessaging(conf *config.StatusListConfiguration, group *sync.WaitGroup, databaseConn *database.Database) {
