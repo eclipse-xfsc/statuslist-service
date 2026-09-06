@@ -2,7 +2,7 @@ package service
 
 import (
 	"bytes"
-	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -17,15 +17,23 @@ import (
 )
 
 //
-// Test helper for reading a 1-bit OAuth Status List entry.
-//
-// Keep this here only as a test utility. It verifies the expected
-// least-significant-bit-first representation without pretending that
-// the service already exposes a statusValue function.
+// IETF Token Status List draft-21 test helpers
 //
 
+// statusValue decodes an entry from the uncompressed byte array used by an
+// IETF Token Status List.
+//
+// Token Status List supports status values with 1, 2, 4, or 8 bits.
+// Entries are packed least-significant-bit first.
+//
+// This is intentionally a test helper. It verifies the representation
+// produced by the service without pretending that the production service
+// exposes a statusValue function.
 func statusValue(bitstring []byte, idx int, bits int) (uint8, error) {
-	if bits != 1 {
+	switch bits {
+	case 1, 2, 4, 8:
+		// supported
+	default:
 		return 0, fmt.Errorf(
 			"unsupported bits value: %d",
 			bits,
@@ -39,24 +47,36 @@ func statusValue(bitstring []byte, idx int, bits int) (uint8, error) {
 		)
 	}
 
-	byteIndex := idx / 8
-	bitIndex := idx % 8
+	entriesPerByte := 8 / bits
+	entryCount := len(bitstring) * entriesPerByte
 
-	if byteIndex >= len(bitstring) {
+	if idx >= entryCount {
 		return 0, fmt.Errorf(
 			"status index %d out of range",
 			idx,
 		)
 	}
 
-	return (bitstring[byteIndex] >> bitIndex) & 1, nil
+	byteIndex := idx / entriesPerByte
+	entryIndex := idx % entriesPerByte
+	shift := entryIndex * bits
+
+	var mask uint8
+
+	if bits == 8 {
+		mask = 0xff
+	} else {
+		mask = uint8((1 << bits) - 1)
+	}
+
+	return (bitstring[byteIndex] >> shift) & mask, nil
 }
 
 //
-// Existing Status List encoding
+// IETF Token Status List draft-21 encoding
 //
 
-func TestEncodeStatusList_UsesGzipAndBase64URLNoPadding(t *testing.T) {
+func TestEncodeStatusList_UsesZlibAndBase64URLNoPadding(t *testing.T) {
 	bitstring := make([]byte, 16*1024)
 
 	bitstring[0] = 0x80
@@ -69,7 +89,7 @@ func TestEncodeStatusList_UsesGzipAndBase64URLNoPadding(t *testing.T) {
 
 	if strings.Contains(encoded, "=") {
 		t.Fatalf(
-			"encoded list contains base64 padding: %q",
+			"encoded status list contains base64 padding: %q",
 			encoded,
 		)
 	}
@@ -79,17 +99,17 @@ func TestEncodeStatusList_UsesGzipAndBase64URLNoPadding(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf(
-			"encoded list is not base64url without padding: %v",
+			"status list is not base64url without padding: %v",
 			err,
 		)
 	}
 
 	reader, err :=
-		gzip.NewReader(bytes.NewReader(compressed))
+		zlib.NewReader(bytes.NewReader(compressed))
 
 	if err != nil {
 		t.Fatalf(
-			"encoded list is not gzip data: %v",
+			"status list is not zlib encoded: %v",
 			err,
 		)
 	}
@@ -103,16 +123,41 @@ func TestEncodeStatusList_UsesGzipAndBase64URLNoPadding(t *testing.T) {
 
 	if !bytes.Equal(decoded, bitstring) {
 		t.Fatal(
-			"decoded bitstring does not match original",
+			"decoded status list does not match original bitstring",
+		)
+	}
+}
+
+func TestEncodeStatusList_IsNotGzip(t *testing.T) {
+	bitstring := make([]byte, 1024)
+
+	encoded, err := encodeStatusList(bitstring)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compressed, err :=
+		base64.RawURLEncoding.DecodeString(encoded)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(compressed) >= 2 &&
+		compressed[0] == 0x1f &&
+		compressed[1] == 0x8b {
+
+		t.Fatal(
+			"status list uses gzip; IETF Token Status List draft-21 requires zlib/DEFLATE",
 		)
 	}
 }
 
 //
-// OAuth Status List bit ordering
+// IETF Token Status List draft-21 bit ordering
 //
 
-func TestOAuthStatusListBitIndex3IsNotSet(t *testing.T) {
+func TestTokenStatusListBitIndex3IsNotSet(t *testing.T) {
 	bitstring := make([]byte, 16)
 
 	got, err := statusValue(
@@ -133,7 +178,7 @@ func TestOAuthStatusListBitIndex3IsNotSet(t *testing.T) {
 	}
 }
 
-func TestOAuthStatusListBitIndex3IsSet(t *testing.T) {
+func TestTokenStatusListBitIndex3IsSet(t *testing.T) {
 	bitstring := make([]byte, 16)
 
 	//
@@ -144,7 +189,6 @@ func TestOAuthStatusListBitIndex3IsSet(t *testing.T) {
 	// byteIndex = 3 / 8 = 0
 	// bitIndex  = 3 %% 8 = 3
 	//
-
 	bitstring[0] |= 1 << 3
 
 	got, err := statusValue(
@@ -165,7 +209,143 @@ func TestOAuthStatusListBitIndex3IsSet(t *testing.T) {
 	}
 }
 
-func TestOAuthStatusListBitIndexOutOfRange(t *testing.T) {
+func TestTokenStatusListTwoBitEntriesAreLSBFirst(t *testing.T) {
+	//
+	// Four 2-bit entries in one byte:
+	//
+	// idx 0 -> bits 0..1
+	// idx 1 -> bits 2..3
+	// idx 2 -> bits 4..5
+	// idx 3 -> bits 6..7
+	//
+	// Values:
+	//
+	// idx0 = 1
+	// idx1 = 2
+	// idx2 = 3
+	// idx3 = 0
+	//
+	bitstring := []byte{
+		0b00111001,
+	}
+
+	expected := []uint8{
+		1,
+		2,
+		3,
+		0,
+	}
+
+	for idx, want := range expected {
+		got, err := statusValue(
+			bitstring,
+			idx,
+			2,
+		)
+
+		if err != nil {
+			t.Fatalf(
+				"idx=%d: %v",
+				idx,
+				err,
+			)
+		}
+
+		if got != want {
+			t.Fatalf(
+				"status value at idx=%d = %d, want %d",
+				idx,
+				got,
+				want,
+			)
+		}
+	}
+}
+
+func TestTokenStatusListFourBitEntriesAreLSBFirst(t *testing.T) {
+	//
+	// idx0 = low nibble  = 0x5
+	// idx1 = high nibble = 0xA
+	//
+	bitstring := []byte{
+		0xA5,
+	}
+
+	first, err := statusValue(
+		bitstring,
+		0,
+		4,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first != 0x05 {
+		t.Fatalf(
+			"status value at idx=0 = %d, want 5",
+			first,
+		)
+	}
+
+	second, err := statusValue(
+		bitstring,
+		1,
+		4,
+	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if second != 0x0A {
+		t.Fatalf(
+			"status value at idx=1 = %d, want 10",
+			second,
+		)
+	}
+}
+
+func TestTokenStatusListEightBitEntries(t *testing.T) {
+	bitstring := []byte{
+		0x00,
+		0x7f,
+		0xff,
+	}
+
+	expected := []uint8{
+		0x00,
+		0x7f,
+		0xff,
+	}
+
+	for idx, want := range expected {
+		got, err := statusValue(
+			bitstring,
+			idx,
+			8,
+		)
+
+		if err != nil {
+			t.Fatalf(
+				"idx=%d: %v",
+				idx,
+				err,
+			)
+		}
+
+		if got != want {
+			t.Fatalf(
+				"status value at idx=%d = %d, want %d",
+				idx,
+				got,
+				want,
+			)
+		}
+	}
+}
+
+func TestTokenStatusListBitIndexOutOfRange(t *testing.T) {
 	bitstring := make([]byte, 1)
 
 	_, err := statusValue(
@@ -181,23 +361,33 @@ func TestOAuthStatusListBitIndexOutOfRange(t *testing.T) {
 	}
 }
 
-func TestOAuthStatusListRejectsUnsupportedBits(t *testing.T) {
+func TestTokenStatusListRejectsUnsupportedBits(t *testing.T) {
 	bitstring := make([]byte, 1)
 
-	_, err := statusValue(
-		bitstring,
+	for _, bits := range []int{
 		0,
-		2,
-	)
-
-	if err == nil {
-		t.Fatal(
-			"expected unsupported bits error",
+		3,
+		5,
+		6,
+		7,
+		16,
+	} {
+		_, err := statusValue(
+			bitstring,
+			0,
+			bits,
 		)
+
+		if err == nil {
+			t.Fatalf(
+				"expected unsupported bits error for bits=%d",
+				bits,
+			)
+		}
 	}
 }
 
-func TestOAuthStatusListRejectsNegativeIndex(t *testing.T) {
+func TestTokenStatusListRejectsNegativeIndex(t *testing.T) {
 	bitstring := make([]byte, 1)
 
 	_, err := statusValue(
@@ -318,7 +508,7 @@ func TestStatusListJWTEncoderRejectsUnsupportedType(t *testing.T) {
 }
 
 //
-// HTTP Accept negotiation
+// IETF Token Status List HTTP Accept negotiation
 //
 
 func TestResponseEncoderUsesStatusListJWTEncoderForExactAccept(t *testing.T) {
@@ -386,6 +576,28 @@ func TestResponseEncoderAcceptsWildcardAccept(t *testing.T) {
 	}
 }
 
+func TestResponseEncoderAcceptsEmptyAccept(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	ctx := context.WithValue(
+		context.Background(),
+		goahttp.AcceptTypeKey,
+		"",
+	)
+
+	encoder :=
+		responseEncoder(ctx, rec)
+
+	if _, ok :=
+		encoder.(*statusListJWTEncoder); !ok {
+
+		t.Fatalf(
+			"encoder type = %T, want *statusListJWTEncoder for empty Accept",
+			encoder,
+		)
+	}
+}
+
 func TestResponseEncoderAcceptsCombinedMediaTypes(t *testing.T) {
 	rec := httptest.NewRecorder()
 
@@ -431,7 +643,7 @@ func TestResponseEncoderAcceptsStatusListJWTWithParameters(t *testing.T) {
 }
 
 //
-// W3C Bitstring Status List
+// W3C Bitstring Status List v1.0
 //
 
 func TestBuildBitstringStatusListCredential_ConformsToVCBitstringStatusList(t *testing.T) {

@@ -53,6 +53,11 @@ func responseEncoder(
 	accept, _ := ctx.Value(goahttp.AcceptTypeKey).(string)
 
 	if acceptsStatusListJWT(accept) {
+		w.Header().Set(
+			"Content-Type",
+			"application/statuslist+jwt",
+		)
+
 		return &statusListJWTEncoder{
 			w: w,
 		}

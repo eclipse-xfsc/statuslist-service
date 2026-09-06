@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	status "github.com/eclipse-xfsc/statuslist-service/gen/status"
 	"github.com/eclipse-xfsc/statuslist-service/internal/database"
 	"github.com/eclipse-xfsc/statuslist-service/internal/signer"
-	"github.com/klauspost/compress/gzip"
 )
 
 const (
@@ -117,16 +117,25 @@ func (s *StatusService) GetList(ctx context.Context, p *status.GetListPayload) (
 func encodeStatusList(bitstring []byte) (string, error) {
 	var buf bytes.Buffer
 
-	writer := gzip.NewWriter(&buf)
+	writer := zlib.NewWriter(&buf)
+
 	if _, err := writer.Write(bitstring); err != nil {
-		return "", err
+		return "", fmt.Errorf(
+			"failed to compress status list: %w",
+			err,
+		)
 	}
 
 	if err := writer.Close(); err != nil {
-		return "", err
+		return "", fmt.Errorf(
+			"failed to finalize status list compression: %w",
+			err,
+		)
 	}
 
-	return base64.RawURLEncoding.EncodeToString(buf.Bytes()), nil
+	return base64.RawURLEncoding.EncodeToString(
+		buf.Bytes(),
+	), nil
 }
 
 func buildCredential(list *database.StatusListWithSigner, encodedList string) map[string]any {
